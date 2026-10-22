@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Chess } from 'chess.js'
 import { Chessboard, type PieceDropHandlerArgs } from 'react-chessboard'
 import EnginePanel from './components/EnginePanel'
+import ExplainPanel from './components/ExplainPanel'
 import EvalBar from './components/EvalBar'
 import FactsPanel from './components/FactsPanel'
 import GameSummary from './components/GameSummary'
@@ -17,7 +18,10 @@ import { classifyGame, summarizeGame } from './lib/classify'
 import { analyzePositions, type Batch } from './lib/gameAnalysis'
 import { analyzePosition } from './lib/facts'
 import { buildThreatLists, highlightSquares } from './lib/threats'
+import { buildExplainRequest } from './lib/explainPayload'
+import { positionKey } from './lib/analysisStore'
 import { useEngine } from './lib/useEngine'
+import { useExplanation } from './lib/useExplanation'
 import { useThreat } from './lib/useThreat'
 
 const BEST_ARROW_COLOR = 'rgba(34, 160, 60, 0.85)'
@@ -76,6 +80,28 @@ export default function App() {
   )
   const lists = useMemo(() => buildThreatLists(facts, orientation === 'white' ? 'w' : 'b'), [facts, orientation])
   const highlights = useMemo(() => highlightSquares(lists), [lists])
+
+  // AI coach: explains only what Stockfish and the fact code produced.
+  const viewer = orientation === 'white' ? 'w' : 'b'
+  const lastClass = game.index > 0 ? classes[game.index - 1] : null
+  const fenBefore = game.index > 0 ? (game.index > 1 ? game.plies[game.index - 2].fen : game.startFen) : null
+  const explainKey = `${positionKey(fen)}|${last?.san ?? ''}|${viewer}|${lastClass?.category ?? ''}`
+  const explanation = useExplanation(explainKey)
+  const explainBlocked =
+    engine.status === 'gameover' ? 'The game is over, so there is nothing to explain.'
+    : !engineOn ? 'Turn the engine on: the coach explains Stockfish’s analysis.'
+    : engine.status !== 'done' ? 'Waiting for the engine to finish analysing…'
+    : null
+  const explainNow = () => {
+    const req = buildExplainRequest({
+      fen, viewer, facts, lists,
+      lines: engine.lines,
+      linesBefore: fenBefore ? (getAnalysis(fenBefore) ?? null) : null,
+      lastPly: last,
+      classification: lastClass,
+    })
+    if (req) void explanation.request(req)
+  }
 
   const bestUci = engine.lines[0]?.pv[0]
   const arrows = []
@@ -169,6 +195,7 @@ export default function App() {
             error={engine.error}
             onRetry={engine.retry}
           />
+          <ExplainPanel state={explanation.state} blockedReason={explainBlocked} onExplain={explainNow} />
           <ThreatsPanel lists={lists} threat={threat} threatOn={threatOn} engineOn={engineOn} onToggle={toggleThreat} />
           <FactsPanel facts={facts} />
           <MoveFeedback ply={last} classification={game.index > 0 ? classes[game.index - 1] : null} engineOn={engineOn} />

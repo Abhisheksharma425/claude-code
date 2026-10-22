@@ -16,7 +16,7 @@ computed facts. It never chooses moves itself.**
 - Vite dev server proxies `/api` to the backend on :3001.
 
 ## Commands
-- `npm run install:all`, `npm run dev:frontend` (:5173), `npm run dev:backend` (:3001), `npm test`.
+- `npm run install:all`, `npm run dev:frontend` (:5173), `npm run dev:backend` (:3001), `npm test` (frontend + backend tests).
 
 ## Working style
 Build ONE step at a time. After each step: run, test, tell the user what to check, wait for OK.
@@ -25,8 +25,8 @@ Build ONE step at a time. After each step: run, test, tell the user what to chec
 - [x] Step 1: Setup and board (board, move list, undo/redo, flip, reset, PGN/FEN load) — approved
 - [x] Step 2: Stockfish engine (lite single-threaded WASM, depth 16, MultiPV 3, eval bar, plain-words eval, top 3 lines, green best-move arrow, mate scores, stop-on-change, on/off toggle) — approved
 - [x] Step 3: Move classification (badges in move list, better move shown, accuracy % + counts per side, basic "Analyze game" button) — approved
-- [x] Step 4: Position facts and threats (unit-tested; facts panel, Your/Opponent's threats lists, red/orange highlights, Show threat button + X key) — awaiting user OK
-- [ ] Step 5: AI explanations (OpenAI, provider interface)
+- [x] Step 4: Position facts and threats (unit-tested; facts panel, Your/Opponent's threats lists, red/orange highlights, Show threat button + X key) — approved
+- [x] Step 5: AI explanations (OpenAI via /api/explain, provider interface, structured outputs, coach panel with loading/cache/errors) — awaiting user OK
 - [ ] Step 6: Big Picture overview
 - [ ] Step 7: Speed and polish (Lichess cloud eval, analyze full game, README)
 
@@ -68,3 +68,19 @@ Build ONE step at a time. After each step: run, test, tell the user what to chec
 - `lib/useThreat.ts`: engine "Show threat"; waits until the real position is analysed (needs it for the swing), then analyses the
   flipped FEN through the same engine (job-id stop, so it never cancels someone else's search). X key toggles it.
 - `lib/factsText.ts`: plain-words lines for the Position facts panel.
+
+## AI explanation notes (Step 5)
+- Setup: `cp .env.example backend/.env`, set `OPENAI_API_KEY` and `OPENAI_MODEL` (no default model on purpose), restart the backend.
+  `backend/src/env.ts` loads `backend/.env` then repo-root `.env`; empty env vars count as unset. `.env` is gitignored.
+- `backend/src/ai/provider.ts`: `AIProvider.complete({system,user,schema}) -> JSON string`; `createProvider()` switches on
+  `AI_PROVIDER`. To add a provider: implement the interface, add a `case`. `openai.ts` uses chat completions + `json_schema`
+  structured outputs (strict) and maps SDK errors to friendly `AIError`s (bad_key, no_credit, rate_limit, bad_model, ...).
+- `ai/explain.ts` = prompt -> provider -> `parseExplanation` -> **guard** (`ai/guard.ts`): any move the AI writes (Nf3, exd5, O-O)
+  must already appear in the data we sent, else one retry, then an error. This enforces the CORE RULE in code.
+- System prompt is verbatim from the spec (`ai/prompt.ts`); data conventions live in the user message. Response JSON:
+  `moveExplanation, lastMoveFeedback, threats, lesson`. Step 6 extends the schema (same endpoint).
+- `ai/validate.ts` whitelists/limits the request body. Types are mirrored in `frontend/src/lib/explainTypes.ts` (keep in sync).
+- Frontend: `lib/explainPayload.ts` builds the request from engine lines + classification + facts + threat lists (all computed);
+  `lib/useExplanation.ts` caches per position/move/viewer; the Coach panel only explains after the engine finishes (button, so no
+  surprise API spend). Browser only ever calls `/api/explain`.
+- Testing without a key: backend tests use a mock OpenAI HTTP server; set `OPENAI_BASE_URL` to point at any compatible server.

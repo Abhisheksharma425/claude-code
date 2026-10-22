@@ -1,0 +1,50 @@
+import cors from 'cors'
+import express, { type ErrorRequestHandler } from 'express'
+import { explain } from './ai/explain.js'
+import type { AIProvider } from './ai/provider.js'
+import { AIError } from './ai/types.js'
+import { validateExplainRequest, ValidationError } from './ai/validate.js'
+
+/** `getProvider` is called per request so a missing key gives a clear error instead of crashing the server. */
+export function createApp(getProvider: () => AIProvider, providerName = 'openai') {
+  const app = express()
+  app.use(cors({ origin: [/^http:\/\/localhost:\d+$/, /^http:\/\/127\.0\.0\.1:\d+$/] }))
+  app.use(express.json({ limit: '100kb' }))
+
+  app.get('/api/health', (_req, res) => {
+    let configured = true
+    try {
+      getProvider()
+    } catch {
+      configured = false
+    }
+    res.json({ ok: true, provider: providerName, configured })
+  })
+
+  app.post('/api/explain', async (req, res) => {
+    try {
+      const request = validateExplainRequest(req.body)
+      const explanation = await explain(getProvider(), request)
+      res.json(explanation)
+    } catch (e) {
+      if (e instanceof ValidationError) {
+        res.status(400).json({ error: { code: 'bad_request', message: `Bad request: ${e.message}` } })
+      } else if (e instanceof AIError) {
+        console.error(`[explain] ${e.code} (${e.status})`)
+        res.status(e.status).json({ error: { code: e.code, message: e.message } })
+      } else {
+        console.error('[explain] unexpected error:', e instanceof Error ? e.name : 'unknown')
+        res.status(500).json({ error: { code: 'unavailable', message: 'Something went wrong on the server. Please try again.' } })
+      }
+    }
+  })
+
+  const onError: ErrorRequestHandler = (err, _req, res, _next) => {
+    const tooBig = err?.type === 'entity.too.large'
+    res.status(tooBig ? 413 : 400).json({
+      error: { code: 'bad_request', message: tooBig ? 'Request too large.' : 'The request body was not valid JSON.' },
+    })
+  }
+  app.use(onError)
+  return app
+}

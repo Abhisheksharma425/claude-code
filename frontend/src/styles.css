@@ -121,3 +121,16 @@ kbd { font: inherit; font-size: 0.75em; padding: 0 5px; border: 1px solid curren
 .facts dl { margin: 8px 0 0; display: grid; gap: 6px; font-size: 0.9rem; }
 .facts dt { font-weight: 600; font-size: 0.8rem; color: var(--muted); }
 .facts dd { margin: 0; }
+
+/* AI coach */
+.explain-section { margin-top: 10px; padding-left: 10px; border-left: 3px solid var(--border); }
+.explain-section h3 { font-size: 0.8rem; margin: 0 0 2px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
+.explain-section p { margin: 0; font-size: 0.95rem; line-height: 1.45; }
+.explain-section.moveExplanation { border-left-color: #22a03c; }
+.explain-section.lastMoveFeedback { border-left-color: #e67e22; }
+.explain-section.threats { border-left-color: #dc2626; }
+.explain-section.lesson { border-left-color: #3b82f6; background: var(--bg); padding: 6px 10px; border-radius: 0 8px 8px 0; }
+.explain-loading { display: flex; gap: 10px; align-items: center; margin-top: 10px; font-size: 0.9rem; }
+.spinner { width: 16px; height: 16px; border: 3px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; flex: none; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.msg.error button { margin-top: 6px; }
