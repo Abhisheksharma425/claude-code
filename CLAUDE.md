@@ -24,8 +24,8 @@ Build ONE step at a time. After each step: run, test, tell the user what to chec
 ## Step progress
 - [x] Step 1: Setup and board (board, move list, undo/redo, flip, reset, PGN/FEN load) — approved
 - [x] Step 2: Stockfish engine (lite single-threaded WASM, depth 16, MultiPV 3, eval bar, plain-words eval, top 3 lines, green best-move arrow, mate scores, stop-on-change, on/off toggle) — approved
-- [x] Step 3: Move classification (badges in move list, better move shown, accuracy % + counts per side, basic "Analyze game" button) — awaiting user OK
-- [ ] Step 4: Position facts and threats (unit-tested)
+- [x] Step 3: Move classification (badges in move list, better move shown, accuracy % + counts per side, basic "Analyze game" button) — approved
+- [x] Step 4: Position facts and threats (unit-tested; facts panel, Your/Opponent's threats lists, red/orange highlights, Show threat button + X key) — awaiting user OK
 - [ ] Step 5: AI explanations (OpenAI, provider interface)
 - [ ] Step 6: Big Picture overview
 - [ ] Step 7: Speed and polish (Lichess cloud eval, analyze full game, README)
@@ -53,3 +53,18 @@ Build ONE step at a time. After each step: run, test, tell the user what to chec
 - `lib/analysisStore.ts`: shared cache of finished analyses; ratings are derived from it, so they appear as analyses finish.
 - `lib/gameAnalysis.ts`: sequential batch ("Analyze game"); pauses the live-position hook while running. Engine `stop(id)`
   only cancels the caller's own job. Step 7 should add: jump-to-blunders, nicer progress.
+
+## Facts & threats notes (Step 4)
+- `lib/facts.ts` (pure, tested): phase, material, hanging / attacked-by-lower pieces, forks, pins, skewers, checks, mate-in-1,
+  king safety, center control, undeveloped minors, pawn structure, open/half-open files, weak squares (holes), last-move type.
+  `analyzePosition(fen, last?)` returns `PositionFacts`; Step 5 sends this (plus engine data) to the AI.
+- Tactics for the side NOT to move are found by flipping the turn in the FEN (`positionWithTurn`); skipped (`available: false`)
+  when the side to move is in check, like Lichess "show threat". Pins/skewers are pure geometry (turn independent).
+- Fork rule: a legal move whose piece is safe on arrival and attacks >=2 targets (king, or a piece worth more than the forker,
+  or an undefended piece worth >=3). Relative pin: front piece (>=3) in front of a more valuable one; skewer: valuable front piece
+  (king/>=5) with a >=3 piece behind.
+- `lib/threats.ts`: `buildThreatLists(facts, me)` ("me" = the side at the bottom of the board), `highlightSquares` (red = my piece
+  in danger, orange = enemy piece I attack), `threatFen`, `evaluateThreat` (swing > 100cp from the threatener's view = "Serious threat").
+- `lib/useThreat.ts`: engine "Show threat"; waits until the real position is analysed (needs it for the swing), then analyses the
+  flipped FEN through the same engine (job-id stop, so it never cancels someone else's search). X key toggles it.
+- `lib/factsText.ts`: plain-words lines for the Position facts panel.

@@ -30,7 +30,7 @@ main { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; align-it
 
 .eval-bar { position: relative; width: 28px; flex: none; display: flex; background: #3a3631; border: 1px solid #8b857a; border-radius: 4px; overflow: hidden; }
 .eval-white { background: #fff; transition: height 0.3s ease; }
-.eval-label { position: absolute; left: 0; right: 0; text-align: center; font-size: 0.7rem; font-weight: 700; padding: 4px 0; }
+.eval-label { position: absolute; left: 0; right: 0; text-align: center; font-size: 0.6rem; font-weight: 700; padding: 4px 0; letter-spacing: -0.03em; }
 .eval-label.at-bottom { bottom: 0; }
 .eval-label.at-top { top: 0; }
 .eval-label.on-white { color: #2b2823; }
@@ -105,3 +105,19 @@ button.small { padding: 4px 12px; min-height: 32px; font-size: 0.85rem; }
 .summary .accuracy-row { font-weight: 700; border-bottom: 1px solid var(--border); }
 .summary .muted-row { color: var(--muted); border-top: 1px solid var(--border); }
 progress { display: block; width: 100%; margin-top: 6px; accent-color: var(--accent); }
+
+/* Threats and facts */
+kbd { font: inherit; font-size: 0.75em; padding: 0 5px; border: 1px solid currentColor; border-radius: 4px; opacity: 0.8; margin-left: 4px; }
+.threats h3 { font-size: 0.9rem; margin: 12px 0 4px; }
+.threats ul { margin: 0; padding-left: 1.1rem; display: grid; gap: 4px; font-size: 0.9rem; }
+.threats .threat-mate { color: #c0392b; font-weight: 600; }
+.threat-result { margin: 8px 0 0; padding: 8px 10px; border-radius: 8px; background: var(--bg); font-size: 0.9rem; border-left: 4px solid #e67e22; }
+.threat-result.serious { border-left-color: #d93025; }
+.legend { margin: 12px 0 0; font-size: 0.8rem; }
+.dot { display: inline-block; width: 0.7em; height: 0.7em; border-radius: 50%; margin-right: 3px; }
+.dot.red { background: #dc2626; }
+.dot.orange { background: #ff9800; }
+.facts summary { cursor: pointer; font-weight: 600; }
+.facts dl { margin: 8px 0 0; display: grid; gap: 6px; font-size: 0.9rem; }
+.facts dt { font-weight: 600; font-size: 0.8rem; color: var(--muted); }
+.facts dd { margin: 0; }
