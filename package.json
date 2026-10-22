@@ -4,6 +4,7 @@
   "scripts": {
     "install:all": "npm --prefix frontend install && npm --prefix backend install",
     "dev": "node scripts/dev.mjs",
+    "dev:phone": "node scripts/dev.mjs --phone",
     "dev:frontend": "npm --prefix frontend run dev",
     "dev:backend": "npm --prefix backend run dev",
     "build": "npm --prefix frontend run build",

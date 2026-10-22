@@ -133,6 +133,11 @@ Build ONE step at a time. After each step: run, test, tell the user what to chec
   (looked like a hang). `lib/useAnalyzeBefore.ts` now analyses the position before the shown move in the background once the live
   analysis is done (and no batch is running). Verified in a browser with Lichess unreachable / hanging / 404.
 
+## Phone / public testing (added after Step 7)
+- `npm run dev:phone` = `scripts/dev.mjs --phone`: Vite runs with `--host` (LAN) and `ALLOW_ALL_HOSTS=1` (read by `vite.config.ts` -> `allowedHosts: true`,
+  so a tunnel's random host name works), and the script prints the LAN URL(s). Only Vite is exposed; `/api` is proxied to the backend on localhost.
+  A tunnel (cloudflared/ngrok) is NOT started by the repo: the sandbox can't open public ports. A public link also exposes the AI keys' spend.
+
 ## Big Picture notes (Step 6)
 - One request, one response: `/api/explain` now returns `{moveExplanation,lastMoveFeedback,threats,lesson, overview}`. The Coach and
   Overview tabs share the same fetched data (`ExplainGate` handles loading/error/ask states), so asking in either tab fills both.

@@ -83,6 +83,22 @@ npm run dev
 This starts the backend on <http://localhost:3001> and the app on **<http://localhost:5173>**. Open the second one.
 Press `Ctrl+C` to stop both.
 
+### Try it on your phone
+
+```bash
+npm run dev:phone
+```
+
+It prints an address such as `http://192.168.1.23:5173`. Open that on a phone connected to **the same Wi-Fi** as your computer
+(if it doesn't load, allow Node.js through your computer's firewall when asked). The phone only talks to the Vite server, which
+forwards `/api` to the backend, so nothing else needs to be exposed.
+
+To test from anywhere (mobile data, or sharing a link), start `npm run dev:phone` and, in a second terminal, run a tunnel such as
+`npx cloudflared tunnel --url http://localhost:5173` (or ngrok). It prints a public `https://…` address. Be careful with this:
+anyone who has the link can use the app **and the AI features on your API key**. Stop the tunnel when you're done, or leave the
+API keys out of `backend/.env` while it is open (everything except Coach and Overview still works). A dev server is not meant for
+permanent hosting.
+
 You can also run them separately in two terminals: `npm run dev:backend` and `npm run dev:frontend`.
 
 To try a production build: `npm run build`, then `npm --prefix frontend run preview` (keep the backend running).

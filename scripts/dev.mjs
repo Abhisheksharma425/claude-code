@@ -2,12 +2,18 @@
 //
 // It runs Node directly (no npm, no shell), so it works the same on Windows, macOS and Linux,
 // including when the project folder's path contains spaces.
+//
+// `npm run dev:phone` (= `node scripts/dev.mjs --phone`) also lets other devices reach the app: phones on the same Wi-Fi,
+// or a tunnel such as `npx cloudflared tunnel --url http://localhost:5173`. The browser only ever talks to the Vite server
+// (it forwards /api to the backend), so the backend itself never has to be exposed.
 import { execFileSync, spawn } from 'node:child_process'
 import { existsSync } from 'node:fs'
+import { networkInterfaces } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
+const phone = process.argv.includes('--phone')
 const frontend = join(root, 'frontend')
 const backend = join(root, 'backend')
 
@@ -24,8 +30,8 @@ execFileSync(process.execPath, [join(frontend, 'scripts', 'copy-engine.mjs')], {
 const children = []
 let stopping = false
 
-function run(name, color, cwd, args) {
-  const child = spawn(process.execPath, args, { cwd, env: process.env })
+function run(name, color, cwd, args, env = {}) {
+  const child = spawn(process.execPath, args, { cwd, env: { ...process.env, ...env } })
   const tag = `\x1b[${color}m[${name}]\x1b[0m `
   for (const stream of [child.stdout, child.stderr]) {
     let pending = ''
@@ -56,4 +62,13 @@ process.on('SIGINT', () => shutdown(0))
 process.on('SIGTERM', () => shutdown(0))
 
 run('backend ', '36', backend, [tsx, 'watch', 'src/index.ts'])
-run('frontend', '35', frontend, [vite])
+if (phone) {
+  const urls = Object.values(networkInterfaces())
+    .flat()
+    .filter((i) => i && i.family === 'IPv4' && !i.internal)
+    .map((i) => `http://${i.address}:5173`)
+  console.log('\nOpen the app on your phone (same Wi-Fi as this computer):')
+  for (const u of urls.length ? urls : ['(no network address found, check your Wi-Fi)']) console.log(`  ${u}`)
+  console.log('Anyone on this network can open it, and the AI backend uses YOUR key. Stop with Ctrl+C when done.\n')
+}
+run('frontend', '35', frontend, phone ? [vite, '--host'] : [vite], phone ? { ALLOW_ALL_HOSTS: '1' } : {})
