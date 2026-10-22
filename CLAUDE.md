@@ -127,6 +127,12 @@ Build ONE step at a time. After each step: run, test, tell the user what to chec
   `App.tsx` keeps `selected`, uses the board's `onSquareClick` (and `onPieceDrag` so dragging shows the dots too); selection resets whenever the
   position changes. Dots replace the orange/red threat glow on a target square while a piece is selected. Promotion still auto-queens.
 
+## Rating the shown move after loading a game (bug fix)
+- A move's rating needs the analysis of the position BEFORE it (`classifyGame` -> `linesBefore`). Playing moves yourself analysed it already, but
+  after loading a game the live engine only analysed the position on screen, so "Rating c6... the engine is still checking" never ended
+  (looked like a hang). `lib/useAnalyzeBefore.ts` now analyses the position before the shown move in the background once the live
+  analysis is done (and no batch is running). Verified in a browser with Lichess unreachable / hanging / 404.
+
 ## Big Picture notes (Step 6)
 - One request, one response: `/api/explain` now returns `{moveExplanation,lastMoveFeedback,threats,lesson, overview}`. The Coach and
   Overview tabs share the same fetched data (`ExplainGate` handles loading/error/ask states), so asking in either tab fills both.

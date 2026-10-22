@@ -27,6 +27,7 @@ import { positionKey } from './lib/analysisStore'
 import { pvToSan } from './lib/uci'
 import { useEngine } from './lib/useEngine'
 import { useAiProvider } from './lib/aiProvider'
+import { useAnalyzeBefore } from './lib/useAnalyzeBefore'
 import { useExplanation } from './lib/useExplanation'
 import { useCloudStatus } from './lib/useCloudStatus'
 import { useMediaQuery } from './lib/useMediaQuery'
@@ -134,6 +135,8 @@ export default function App() {
   const viewer = orientation === 'white' ? 'w' : 'b'
   const lastClass = game.index > 0 ? classes[game.index - 1] : null
   const fenBefore = game.index > 0 ? (game.index > 1 ? game.plies[game.index - 2].fen : game.startFen) : null
+  // The shown move can only be rated once the position before it is analysed too (matters after loading a game).
+  useAnalyzeBefore(fenBefore, engineOn && engine.status === 'done' && batchProgress === null)
   const { provider: aiProvider } = useAiProvider()
   // The AI is part of the key: switching from OpenAI to Claude asks again instead of showing the other one's answer.
   const explainKey = `${positionKey(fen)}|${last?.san ?? ''}|${viewer}|${lastClass?.category ?? ''}|${aiProvider}`
