@@ -110,6 +110,17 @@ Build ONE step at a time. After each step: run, test, tell the user what to chec
 - Anthropic SDK 1.x sends the key as `Authorization: Bearer`, not `x-api-key` (the backend test accounts for it). Not yet tried against the
   live API from the sandbox: tested with a mock Anthropic server only.
 
+## Loading games: file upload and chess.com (added after Step 7)
+- Load tab (`components/LoadPanel.tsx`): chess.com box (`components/ChessComGames.tsx`), "Upload PGN file" button, paste box. The request
+  said "png"; it was read as **PGN** (a typo). Image files are refused with a friendly message (`lib/gameFile.ts` `gameFileProblem`);
+  there is NO board-image recognition. Uploads are read as text into the paste box and go through the same `parseInput`.
+- `lib/chesscom.ts`: public API only, called from the browser (no key): `/pub/player/{name}/games/archives`, then the newest <=3 monthly
+  archives; `parseMonth` keeps standard-chess games, works out colour/result for the searched player; max 30 games, newest first, deduped.
+  Username is validated (`cleanUsername`, 3-25 of `[A-Za-z0-9_-]`) so nothing odd reaches the URL; archive links must start with the
+  expected prefix. Pure and tested with an injected fetch. **Not verified against the live API from the sandbox** (tested with intercepted
+  responses); if the browser blocks it (CORS), the fix is a small proxy route in `backend/`.
+- Loading a chess.com game also sets the board orientation to the searched player's colour (`onLoad(game, note, orientation)`).
+
 ## Big Picture notes (Step 6)
 - One request, one response: `/api/explain` now returns `{moveExplanation,lastMoveFeedback,threats,lesson, overview}`. The Coach and
   Overview tabs share the same fetched data (`ExplainGate` handles loading/error/ask states), so asking in either tab fills both.

@@ -12,7 +12,8 @@ position and improve.
 
 | | |
 |---|---|
-| **Board** | Drag pieces (legal moves only), click any move in the list to jump, undo/redo, flip, new game. Load a game from a PGN or a position from a FEN. Works on phones. |
+| **Board** | Drag pieces (legal moves only), click any move in the list to jump, undo/redo, flip, new game. Load a game from a PGN (pasted or uploaded as a `.pgn` file) or a position from a FEN. Works on phones. |
+| **chess.com games** | On the Load tab, type a chess.com username to list that player's recent public games (newest first, with result, opponent and time control) and load or analyze one with your side at the bottom. No password or key needed. |
 | **Engine** | Stockfish 19 (WebAssembly, in a Web Worker): depth 16, top 3 lines, eval bar, evaluation in plain words ("White is slightly better"), green best-move arrow, mate scores. |
 | **Move ratings** | Best / Good / Inaccuracy / Mistake / Blunder / Missed mate for every move, from the mover's point of view, with the better move shown. Accuracy % and counts per side. |
 | **Analyze full game** | Rates the whole game, draws an evaluation graph, and lists the key moments (blunders, mistakes, missed mates) you can click to jump to. |
@@ -88,7 +89,7 @@ To try a production build: `npm run build`, then `npm --prefix frontend run prev
 
 ## Using the app
 
-1. Drag a piece, or open the **Load** tab and paste a PGN or FEN (or press **Try an example**).
+1. Drag a piece, or open the **Load** tab: type your chess.com username and pick a game, upload a `.pgn` file, or paste a PGN or FEN (or press **Try an example**). Pictures (for example a PNG screenshot of a board) can't be read.
 2. The engine starts automatically. The right-hand panel shows the evaluation and the top 3 lines.
 3. Open **Summary** and press **Analyze full game** (or use **Load and analyze**) to rate every move.
    Click a key moment, or press `]` / `[`, to jump between blunders.
@@ -102,6 +103,12 @@ To try a production build: `npm run build`, then `npm --prefix frontend run prev
 | `F` | Flip the board |
 | `X` | Show / hide the opponent's threat |
 | `[` / `]` | Previous / next key moment (blunder, mistake, missed mate) |
+
+## chess.com games
+
+The **Your chess.com games** box calls chess.com's public API (`api.chess.com/pub/player/<name>/games/...`) straight from your browser:
+it reads the last few months of that player's public games, shows up to 30, and never sends anything else. Variants such as
+Chess960 are skipped. If it says it can't reach chess.com, check your connection or any ad/privacy blocker, then try again.
 
 ## Lichess cloud evaluations and privacy
 
@@ -127,6 +134,8 @@ You can switch it off with the **Lichess cloud** button under the engine lines. 
 | **"OpenAI doesn't know the model ..." / "Anthropic doesn't know the model ..."** | Check the spelling of `OPENAI_MODEL` / `ANTHROPIC_MODEL`, and that your key can use it. |
 | **"couldn't process the request ... structured outputs"** | The model you chose doesn't support JSON-schema structured outputs. Pick a current chat model that does. |
 | **The AI's answer was thrown away** | The AI mentioned a move Stockfish never suggested, or left parts out. The app already retried once. Press the button again. |
+| **"Chess.com has no player called ..."** | Check the spelling of the username (3 to 25 letters, digits, `_` or `-`). |
+| **An uploaded file says "That's a picture"** | Only text game files (`.pgn`, `.txt`) can be read. Export the game as PGN from chess.com or Lichess. |
 | **A PGN won't load** | The message names the exact move that isn't legal (for example "Move 5. Qh8 isn't legal in that position"). Check for a typo or a missing move before it. PGNs with several games load the first game. `0-0` and `O-O` are both accepted. |
 | **Cloud evals look wrong or backwards** | Turn off *Lichess cloud* and compare: the local engine is the reference. Please report it. |
 | **`npm run dev` says "Dependencies are missing"** | Run `npm run install:all` first. |

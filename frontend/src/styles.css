@@ -336,6 +336,26 @@ progress { width: 100%; height: 8px; accent-color: var(--accent); }
 }
 .load-panel textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 .row { display: flex; gap: 8px; flex-wrap: wrap; }
+.divider { border: 0; border-top: 1px solid var(--border); margin: 6px 0; width: 100%; }
+.chesscom { display: flex; flex-direction: column; gap: 8px; }
+.chesscom-form input {
+  flex: 1 1 160px; min-width: 0; font: inherit; padding: 8px 10px; border-radius: 8px;
+  border: 1px solid var(--border); background: var(--surface); color: var(--text);
+}
+.chesscom-form input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.game-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; max-height: 280px; overflow: auto; }
+.game-item {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap;
+  padding: 8px 10px; border: 1px solid var(--border); border-left-width: 4px; border-radius: 8px; background: var(--surface);
+}
+.game-item.win { border-left-color: var(--accent); }
+.game-item.loss { border-left-color: var(--danger); }
+.game-item.draw { border-left-color: var(--muted); }
+.game-info { display: flex; flex-direction: column; gap: 2px; min-width: 0; font-size: 0.9rem; }
+.game-info .muted { font-size: 0.8rem; }
+.dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; border: 1px solid var(--muted); vertical-align: baseline; }
+.dot.white { background: #fff; }
+.dot.black { background: #222; }
 
 /* ---------- Small screens ---------- */
 .brand h1, .turn-pill { white-space: nowrap; }

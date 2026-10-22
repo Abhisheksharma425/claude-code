@@ -277,8 +277,8 @@ export default function App() {
     case 'load':
       tabBody = (
         <LoadPanel
-          onLoad={(g, note) => { setGame(g); setChosenTab(null); setNotice(note ?? null) }}
-          onLoadAndAnalyze={(g, note) => { setGame(g); setChosenTab('summary'); setAnalyzeAfterLoad(true); setNotice(note ?? null) }}
+          onLoad={(g, note, side) => { setGame(g); if (side) setOrientation(side); setChosenTab(null); setNotice(note ?? null) }}
+          onLoadAndAnalyze={(g, note, side) => { setGame(g); if (side) setOrientation(side); setChosenTab('summary'); setAnalyzeAfterLoad(true); setNotice(note ?? null) }}
         />
       )
       break
