@@ -130,3 +130,9 @@ Build ONE step at a time. After each step: run, test, tell the user what to chec
   (`diagnosePgn` in `game.ts`), accept `0-0`, load the first game of a multi-game file (+ notice bar), 200k-char cap; React `ErrorBoundary`.
 - `engine.stop(id)` no longer sends a second `stop` to a search that was already told to stop.
 - README.md documents setup, `.env`, running, troubleshooting. `scripts/dev.mjs` runs both servers.
+- **Repo hygiene lesson:** the inherited Python `.gitignore` had `lib/`, which silently ignored all of `frontend/src/lib` (it is now
+  anchored as `/lib/`). Before calling a step done, verify with a fresh `git clone` of the remote: `npm run install:all && npm test &&
+  npm run typecheck && npm run build` (this is how it was found).
+- Known limitation: a game analysed partly from the Lichess cloud (deep, ~depth 40) and partly locally (depth 16) can produce slightly
+  noisy ratings where the two sources meet, because a move's "before" and "after" evals may come from different searches. Moves that
+  appear in the same MultiPV result are compared like-for-like. Turn the cloud chip off for fully consistent ratings.

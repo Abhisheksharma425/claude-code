@@ -11,7 +11,8 @@
     "copy-engine": "node scripts/copy-engine.mjs",
     "postinstall": "node scripts/copy-engine.mjs",
     "predev": "node scripts/copy-engine.mjs",
-    "prebuild": "node scripts/copy-engine.mjs"
+    "prebuild": "node scripts/copy-engine.mjs",
+    "typecheck": "tsc -b --noEmit"
   },
   "dependencies": {
     "chess.js": "^1.4.0",

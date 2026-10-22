@@ -7,7 +7,7 @@
     "dev:frontend": "npm --prefix frontend run dev",
     "dev:backend": "npm --prefix backend run dev",
     "build": "npm --prefix frontend run build",
-    "typecheck": "npm --prefix frontend exec tsc -- -b --noEmit && npm --prefix backend exec tsc -- --noEmit",
+    "typecheck": "npm --prefix frontend run typecheck && npm --prefix backend run typecheck",
     "test": "npm --prefix frontend test && npm --prefix backend test"
   },
   "engines": {
