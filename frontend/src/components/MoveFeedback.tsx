@@ -11,22 +11,24 @@ export default function MoveFeedback({ ply, classification, engineOn }: Props) {
   if (!ply) return null
   if (!classification) {
     return (
-      <div className="card feedback">
+      <div className="feedback pending">
+        <span className="spinner small" aria-hidden />
         <p className="muted">
           {engineOn
-            ? `Rating ${ply.san}… the engine is still checking this position.`
-            : `${ply.san} isn't rated yet. Turn the engine on or press “Analyze game”.`}
+            ? `Rating ${ply.san}… the engine is still checking.`
+            : `${ply.san} isn’t rated yet. Turn the engine on or analyze the game.`}
         </p>
       </div>
     )
   }
   const meta = CATEGORY_META[classification.category]
   return (
-    <div className={`card feedback border-${classification.category}`}>
-      <p className="feedback-title">
-        <span className={`badge cat-${classification.category}`}>{meta.symbol}</span> {meta.label}
-      </p>
-      <p>{feedbackText(classification, ply.san)}</p>
+    <div className={`feedback border-${classification.category}`}>
+      <span className={`badge big cat-${classification.category}`}>{meta.symbol}</span>
+      <div>
+        <p className="feedback-title">{meta.label}</p>
+        <p>{feedbackText(classification, ply.san)}</p>
+      </div>
     </div>
   )
 }

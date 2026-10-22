@@ -39,7 +39,7 @@ export default function MoveList({ game, onJump, classes }: Props) {
 
   return (
     <div className="move-list" aria-label="Move list">
-      {rows.length === 0 && <p className="muted">No moves yet. Drag a piece to start.</p>}
+      {rows.length === 0 && <p className="empty-state">No moves yet. Drag a piece on the board, or load a game.</p>}
       {rows.map((r) => (
         <div className="move-row" key={r.number + (r.white ? 'w' : 'b')}>
           <span className="move-number">{r.number}.</span>

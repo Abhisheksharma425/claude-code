@@ -1,4 +1,5 @@
 import type { ExplanationState } from '../lib/useExplanation'
+import Icon from './Icon'
 
 interface Props {
   state: ExplanationState
@@ -15,36 +16,20 @@ const SECTIONS = [
 ] as const
 
 export default function ExplainPanel({ state, blockedReason, onExplain }: Props) {
-  const busy = state.status === 'loading'
-  return (
-    <div className="card explain">
-      <div className="engine-head">
-        <h2>Coach</h2>
-        <button className="small" onClick={onExplain} disabled={busy || blockedReason !== null}>
-          {state.status === 'done' ? 'Explain again' : busy ? 'Thinking…' : 'Explain this position'}
-        </button>
+  if (state.status === 'loading') {
+    return (
+      <div className="explain" role="status" aria-live="polite">
+        <p className="explain-loading"><span className="spinner" aria-hidden /> Asking the coach to explain the engine’s analysis…</p>
+        <div className="skeleton" aria-hidden><i /><i /><i style={{ width: '70%' }} /></div>
+        <div className="skeleton" aria-hidden><i /><i style={{ width: '55%' }} /></div>
       </div>
+    )
+  }
 
-      {state.status === 'idle' && (
-        <p className="muted">{blockedReason ?? 'Get a simple explanation of the engine’s analysis.'}</p>
-      )}
-      {state.status === 'idle' && blockedReason === null && <p className="muted">Uses your OpenAI key through the local backend.</p>}
-
-      {busy && (
-        <div className="explain-loading" role="status" aria-live="polite">
-          <span className="spinner" aria-hidden /> Asking the coach to explain the engine’s analysis…
-        </div>
-      )}
-
-      {state.status === 'error' && (
-        <div className="msg error" role="alert">
-          <p>{state.error.message}</p>
-          <button className="small" onClick={onExplain} disabled={blockedReason !== null}>Try again</button>
-        </div>
-      )}
-
-      {state.status === 'done' &&
-        SECTIONS.map(({ key, title }) =>
+  if (state.status === 'done') {
+    return (
+      <div className="explain">
+        {SECTIONS.map(({ key, title }) =>
           state.data[key] ? (
             <section key={key} className={`explain-section ${key}`}>
               <h3>{title}</h3>
@@ -52,10 +37,30 @@ export default function ExplainPanel({ state, blockedReason, onExplain }: Props)
             </section>
           ) : null,
         )}
+        <div className="explain-foot">
+          <p className="muted">Stockfish picks the moves. The AI only explains them.</p>
+          <button className="btn ghost small" onClick={onExplain} disabled={blockedReason !== null}>Explain again</button>
+        </div>
+      </div>
+    )
+  }
 
-      {(state.status === 'done' || busy) && (
-        <p className="muted legend">Stockfish picks the moves. The AI only explains them.</p>
+  return (
+    <div className="explain">
+      {state.status === 'error' && (
+        <div className="callout error" role="alert">
+          <p>{state.error.message}</p>
+        </div>
       )}
+      <div className="cta">
+        <span className="cta-icon"><Icon name="spark" size={26} /></span>
+        <h3>{state.status === 'error' ? 'Try again?' : 'Ask the coach'}</h3>
+        <p className="muted">A short, simple explanation of what the engine found: the best move, your last move, and threats.</p>
+        <button className="btn primary" onClick={onExplain} disabled={blockedReason !== null}>
+          {state.status === 'error' ? 'Try again' : 'Explain this position'}
+        </button>
+        {blockedReason && <p className="hint">{blockedReason}</p>}
+      </div>
     </div>
   )
 }

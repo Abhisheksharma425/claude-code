@@ -1,14 +1,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Chess } from 'chess.js'
 import { Chessboard, type PieceDropHandlerArgs } from 'react-chessboard'
+import BoardToolbar from './components/BoardToolbar'
 import EnginePanel from './components/EnginePanel'
 import ExplainPanel from './components/ExplainPanel'
 import EvalBar from './components/EvalBar'
 import FactsPanel from './components/FactsPanel'
 import GameSummary from './components/GameSummary'
 import LoadPanel from './components/LoadPanel'
-import MoveFeedback from './components/MoveFeedback'
-import MoveList from './components/MoveList'
+import MovesPanel from './components/MovesPanel'
+import Tabs, { type TabDef } from './components/Tabs'
 import ThreatsPanel from './components/ThreatsPanel'
 import {
   canRedo, canUndo, fenAt, jumpTo, lastPly, newGame, playMove, type GameState,
@@ -22,16 +23,28 @@ import { buildExplainRequest } from './lib/explainPayload'
 import { positionKey } from './lib/analysisStore'
 import { useEngine } from './lib/useEngine'
 import { useExplanation } from './lib/useExplanation'
+import { useMediaQuery } from './lib/useMediaQuery'
 import { useThreat } from './lib/useThreat'
 
 const BEST_ARROW_COLOR = 'rgba(34, 160, 60, 0.85)'
 const THREAT_ARROW_COLOR = 'rgba(220, 38, 38, 0.85)'
 const glow = (rgb: string) => ({ background: `radial-gradient(circle, rgba(${rgb}, 0.75) 0%, rgba(${rgb}, 0.25) 55%, rgba(${rgb}, 0) 75%)` })
-const LAST_MOVE_STYLE = { backgroundColor: 'rgba(255, 213, 0, 0.4)' }
+const LAST_MOVE_STYLE = { backgroundColor: 'rgba(255, 213, 0, 0.42)' }
+// Soft blue-grey board: green (best move), red (threat) and yellow (last move) all stand out on it.
+const LIGHT_SQUARE = '#dfe5ea'
+const DARK_SQUARE = '#86a1b3'
+const BOARD_STYLE = { borderRadius: 8, overflow: 'hidden', boxShadow: '0 6px 24px rgba(15, 23, 42, 0.18)' }
+const NOTATION = { fontSize: 11, fontWeight: 700 }
+
+type TabId = 'moves' | 'coach' | 'threats' | 'facts' | 'summary' | 'load'
 
 export default function App() {
   const [game, setGame] = useState<GameState>(() => newGame())
   const [orientation, setOrientation] = useState<'white' | 'black'>('white')
+  // Wide screens show the move list as its own column; narrower ones make it the first tab.
+  const wide = useMediaQuery('(min-width: 1400px)')
+  const [chosenTab, setChosenTab] = useState<TabId | null>(null)
+  const activeTab: TabId = chosenTab && !(wide && chosenTab === 'moves') ? chosenTab : wide ? 'coach' : 'moves'
 
   const fen = fenAt(game)
   const chess = useMemo(() => new Chess(fen), [fen])
@@ -113,6 +126,9 @@ export default function App() {
 
   const undo = useCallback(() => setGame((g) => jumpTo(g, g.index - 1)), [])
   const redo = useCallback(() => setGame((g) => jumpTo(g, g.index + 1)), [])
+  const first = () => setGame((g) => jumpTo(g, 0))
+  const lastMove = () => setGame((g) => jumpTo(g, g.plies.length))
+  const flip = useCallback(() => setOrientation((o) => (o === 'white' ? 'black' : 'white')), [])
   const reset = () => { setGame(newGame()); setOrientation('white') }
 
   const onPieceDrop = ({ sourceSquare, targetSquare }: PieceDropHandlerArgs) => {
@@ -129,12 +145,12 @@ export default function App() {
       if (t.tagName === 'TEXTAREA' || t.tagName === 'INPUT') return
       if (e.key === 'ArrowLeft') undo()
       else if (e.key === 'ArrowRight') redo()
-      else if (e.key === 'f') setOrientation((o) => (o === 'white' ? 'black' : 'white'))
+      else if (e.key === 'f') flip()
       else if (e.key === 'x' || e.key === 'X') toggleThreat()
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [undo, redo, toggleThreat])
+  }, [undo, redo, flip, toggleThreat])
 
   const squareStyles: Record<string, React.CSSProperties> = {}
   for (const sq of highlights.attacked) squareStyles[sq] = glow('255, 152, 0')
@@ -150,42 +166,99 @@ export default function App() {
     : chess.isDraw() ? 'Draw.'
     : `${chess.turn() === 'w' ? 'White' : 'Black'} to move${chess.inCheck() ? ' (in check)' : ''}`
 
+  const danger = lists.opponents.some((t) => t.kind !== 'check')
+  const tabs: TabDef[] = [
+    ...(wide ? [] : [{ id: 'moves', label: 'Moves' }]),
+    { id: 'coach', label: 'Coach' },
+    { id: 'threats', label: 'Threats', alert: danger },
+    { id: 'facts', label: 'Facts' },
+    { id: 'summary', label: 'Summary' },
+    { id: 'load', label: 'Load' },
+  ]
+
+  const movesPanel = (
+    <MovesPanel game={game} classes={classes} engineOn={engineOn} onJump={(i) => setGame((g) => jumpTo(g, i))} />
+  )
+
+  let tabBody: React.ReactNode
+  switch (activeTab) {
+    case 'moves': tabBody = movesPanel; break
+    case 'coach': tabBody = <ExplainPanel state={explanation.state} blockedReason={explainBlocked} onExplain={explainNow} />; break
+    case 'threats': tabBody = <ThreatsPanel lists={lists} threat={threat} threatOn={threatOn} engineOn={engineOn} onToggle={toggleThreat} />; break
+    case 'facts': tabBody = <FactsPanel facts={facts} />; break
+    case 'summary':
+      tabBody = (
+        <GameSummary
+          summary={summary}
+          hasMoves={game.plies.length > 0}
+          progress={batchProgress}
+          error={batchError}
+          onAnalyze={startBatch}
+          onCancel={() => batchRef.current?.cancel()}
+        />
+      )
+      break
+    case 'load': tabBody = <LoadPanel onLoad={(g) => { setGame(g); setChosenTab(null) }} />; break
+  }
+
+  const turnWhite = chess.turn() === 'w'
+
   return (
     <div className="app">
-      <header>
-        <h1>♞ Chess Analyser</h1>
-        <span className="muted">{status}</span>
+      <header className="topbar">
+        <div className="brand">
+          <span className="logo" aria-hidden>♞</span>
+          <h1>Chess Analyser</h1>
+        </div>
+        <div className="topbar-right">
+          <span className="turn-pill" role="status">
+            <i className={`pawn ${turnWhite ? 'white' : 'black'}`} />
+            {status}
+          </span>
+          <button className="btn ghost small" onClick={() => setChosenTab('load')}>Load game</button>
+        </div>
       </header>
 
-      <main>
+      <main className={`workspace${wide ? ' wide' : ''}`}>
         <section className="board-col">
           <div className="board-wrap">
             <EvalBar score={engine.lines[0]?.score ?? null} orientation={orientation} />
             <div className="board">
-            <Chessboard
-              options={{
-                id: 'main-board',
-                position: fen,
-                boardOrientation: orientation,
-                onPieceDrop,
-                canDragPiece: ({ piece }) => piece.pieceType[0] === chess.turn(),
-                squareStyles,
-                arrows,
-                allowDrawingArrows: false,
-                animationDurationInMs: 150,
-              }}
-            />
+              <Chessboard
+                options={{
+                  id: 'main-board',
+                  position: fen,
+                  boardOrientation: orientation,
+                  onPieceDrop,
+                  canDragPiece: ({ piece }) => piece.pieceType[0] === chess.turn(),
+                  squareStyles,
+                  arrows,
+                  allowDrawingArrows: false,
+                  animationDurationInMs: 150,
+                  lightSquareStyle: { backgroundColor: LIGHT_SQUARE },
+                  darkSquareStyle: { backgroundColor: DARK_SQUARE },
+                  boardStyle: BOARD_STYLE,
+                  lightSquareNotationStyle: { ...NOTATION, color: DARK_SQUARE },
+                  darkSquareNotationStyle: { ...NOTATION, color: LIGHT_SQUARE },
+                }}
+              />
             </div>
           </div>
-          <div className="controls">
-            <button onClick={undo} disabled={!canUndo(game)} title="Undo (←)">◀ Undo</button>
-            <button onClick={redo} disabled={!canRedo(game)} title="Redo (→)">Redo ▶</button>
-            <button onClick={() => setOrientation((o) => (o === 'white' ? 'black' : 'white'))} title="Flip (F)">⇅ Flip</button>
-            <button className="secondary" onClick={reset}>Reset</button>
-          </div>
+          <BoardToolbar
+            canUndo={canUndo(game)}
+            canRedo={canRedo(game)}
+            onFirst={first}
+            onUndo={undo}
+            onRedo={redo}
+            onLast={lastMove}
+            onFlip={flip}
+            onReset={reset}
+          />
         </section>
 
-        <aside className="side-col">
+        {wide && <aside className="panel moves-col" aria-label="Moves">{movesPanel}</aside>}
+
+        <aside className="panel analysis-col">
           <EnginePanel
             fen={fen}
             enabled={engineOn}
@@ -195,23 +268,10 @@ export default function App() {
             error={engine.error}
             onRetry={engine.retry}
           />
-          <ExplainPanel state={explanation.state} blockedReason={explainBlocked} onExplain={explainNow} />
-          <ThreatsPanel lists={lists} threat={threat} threatOn={threatOn} engineOn={engineOn} onToggle={toggleThreat} />
-          <FactsPanel facts={facts} />
-          <MoveFeedback ply={last} classification={game.index > 0 ? classes[game.index - 1] : null} engineOn={engineOn} />
-          <div className="card">
-            <h2>Moves</h2>
-            <MoveList game={game} classes={classes} onJump={(i) => setGame((g) => jumpTo(g, i))} />
+          <Tabs tabs={tabs} active={activeTab} onChange={(id) => setChosenTab(id as TabId)} />
+          <div className="tab-body" role="tabpanel" id="tab-panel" aria-labelledby={`tab-${activeTab}`}>
+            {tabBody}
           </div>
-          <GameSummary
-            summary={summary}
-            hasMoves={game.plies.length > 0}
-            progress={batchProgress}
-            error={batchError}
-            onAnalyze={startBatch}
-            onCancel={() => batchRef.current?.cancel()}
-          />
-          <LoadPanel onLoad={(g) => setGame(g)} />
         </aside>
       </main>
     </div>

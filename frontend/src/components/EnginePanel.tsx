@@ -28,42 +28,45 @@ export default function EnginePanel({ fen, enabled, onToggle, status, lines, err
 
   const progress =
     status === 'thinking' && top ? `Thinking… depth ${top.depth}/${ENGINE_DEPTH}`
-    : status === 'done' && top ? `Analysis complete (depth ${top.depth})`
+    : status === 'done' && top ? `Stockfish · depth ${top.depth}`
     : status === 'loading' ? 'Loading engine…'
     : ''
+  const pct = status === 'done' ? 100 : status === 'thinking' && top ? Math.min(100, (top.depth / ENGINE_DEPTH) * 100) : 0
+  const leader = !top ? 'none' : top.score.value >= 0 ? 'white' : 'black'
 
   return (
-    <div className="card engine-panel">
-      <div className="engine-head">
-        <h2>Engine</h2>
-        <label className="switch">
-          <input type="checkbox" checked={enabled} onChange={(e) => onToggle(e.target.checked)} />
-          <span>{enabled ? 'On' : 'Off'}</span>
+    <section className="engine" aria-label="Engine">
+      <div className="engine-top">
+        <span className={`score-chip ${leader}`}>{top ? scoreLabel(top.score) : '–'}</span>
+        <div className="engine-words">
+          <strong>{headline}</strong>
+          {progress && <span className="muted">{progress}</span>}
+        </div>
+        <label className="toggle" title="Turn the engine on or off">
+          <input type="checkbox" role="switch" checked={enabled} onChange={(e) => onToggle(e.target.checked)} aria-label="Engine" />
+          <span className="track" />
         </label>
       </div>
+      <div className={`depth-bar${status === 'thinking' ? ' busy' : ''}`}><i style={{ width: `${pct}%` }} /></div>
 
       {status === 'error' ? (
-        <div className="msg error" role="alert">
-          <p>The engine couldn't run: {error}</p>
-          <button onClick={onRetry}>Try again</button>
+        <div className="callout error" role="alert">
+          <p>The engine couldn’t run: {error}</p>
+          <button className="btn small" onClick={onRetry}>Try again</button>
         </div>
       ) : (
-        <>
-          <p className="eval-words">{headline}</p>
-          {progress && <p className="muted">{progress}</p>}
-          <ol className="pv-list">
-            {lines.map((l) => {
-              const sans = pvToSan(fen, l.pv)
-              return (
-                <li key={l.multipv} className={l.multipv === 1 ? 'best' : ''}>
-                  <span className="pv-score">{scoreLabel(l.score)}</span>
-                  <span className="pv-moves">{formatLine(fen, sans.slice(0, 8))}</span>
-                </li>
-              )
-            })}
-          </ol>
-        </>
+        <ol className="pv-list">
+          {lines.map((l) => {
+            const text = formatLine(fen, pvToSan(fen, l.pv.slice(0, 10)))
+            return (
+              <li key={l.multipv} className={l.multipv === 1 ? 'best' : ''} title={text}>
+                <span className="pv-score">{scoreLabel(l.score)}</span>
+                <span className="pv-moves">{text}</span>
+              </li>
+            )
+          })}
+        </ol>
       )}
-    </div>
+    </section>
   )
 }
