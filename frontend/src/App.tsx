@@ -17,6 +17,7 @@ import {
 } from './lib/game'
 import { getAnalysis, useAnalysisVersion } from './lib/analysisStore'
 import { classifyGame, summarizeGame } from './lib/classify'
+import { evalSeries, keyMoments, stepKeyMoment } from './lib/keyMoments'
 import { analyzePositions, type Batch } from './lib/gameAnalysis'
 import { analyzePosition } from './lib/facts'
 import { buildThreatLists, highlightSquares } from './lib/threats'
@@ -25,6 +26,7 @@ import { positionKey } from './lib/analysisStore'
 import { pvToSan } from './lib/uci'
 import { useEngine } from './lib/useEngine'
 import { useExplanation } from './lib/useExplanation'
+import { useCloudStatus } from './lib/useCloudStatus'
 import { useMediaQuery } from './lib/useMediaQuery'
 import { useThreat } from './lib/useThreat'
 
@@ -52,7 +54,7 @@ export default function App() {
   const chess = useMemo(() => new Chess(fen), [fen])
   const last = lastPly(game)
   const [engineOn, setEngineOn] = useState(true)
-  const [batchProgress, setBatchProgress] = useState<{ done: number; total: number } | null>(null)
+  const [batchProgress, setBatchProgress] = useState<{ done: number; total: number; cloud: number } | null>(null)
   const [batchError, setBatchError] = useState<string | null>(null)
   const batchRef = useRef<Batch | null>(null)
   const engine = useEngine(fen, engineOn, batchProgress !== null)
@@ -65,6 +67,20 @@ export default function App() {
     [game.startFen, game.plies, analysisVersion],
   )
   const summary = useMemo(() => summarizeGame(game.startFen, game.plies, classes), [game.startFen, game.plies, classes])
+  const moments = useMemo(() => keyMoments(game, classes), [game, classes])
+  const series = useMemo(
+    () => evalSeries(game, getAnalysis),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [game.startFen, game.plies, analysisVersion],
+  )
+  const cloud = useCloudStatus()
+  const jumpMoment = useCallback(
+    (dir: 1 | -1) => {
+      const m = stepKeyMoment(moments, game.index, dir)
+      if (m) setGame((g) => jumpTo(g, m.ply))
+    },
+    [moments, game.index],
+  )
 
   // A batch belongs to one game: changing the moves cancels it.
   const gameSignature = game.startFen + game.plies.map((p) => p.san).join(' ')
@@ -73,15 +89,31 @@ export default function App() {
   const startBatch = () => {
     setBatchError(null)
     const fens = [game.startFen, ...game.plies.map((p) => p.fen)]
-    const batch = analyzePositions(fens, (done, total) => setBatchProgress({ done, total }))
+    const batch = analyzePositions(fens, (done, total, cloud) => setBatchProgress({ done, total, cloud }))
     batchRef.current = batch
-    setBatchProgress({ done: 0, total: batch.total })
+    setBatchProgress({ done: 0, total: batch.total, cloud: 0 })
     batch.done.then(({ result, error }) => {
       if (batchRef.current === batch) batchRef.current = null
       setBatchProgress(null)
       if (result === 'error') setBatchError(error ?? 'Analysis failed.')
     })
   }
+
+  // "Load and analyze": wait until the new game is in place, then start the batch.
+  const [notice, setNotice] = useState<string | null>(null)
+  useEffect(() => {
+    if (!notice) return
+    const id = window.setTimeout(() => setNotice(null), 10_000)
+    return () => window.clearTimeout(id)
+  }, [notice])
+  const [analyzeAfterLoad, setAnalyzeAfterLoad] = useState(false)
+  useEffect(() => {
+    if (analyzeAfterLoad && game.plies.length > 0) {
+      setAnalyzeAfterLoad(false)
+      startBatch()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [analyzeAfterLoad, gameSignature])
 
   const [threatOn, setThreatOn] = useState(false)
   const threat = useThreat(fen, threatOn, batchProgress !== null)
@@ -166,10 +198,12 @@ export default function App() {
       else if (e.key === 'ArrowRight') redo()
       else if (e.key === 'f') flip()
       else if (e.key === 'x' || e.key === 'X') toggleThreat()
+      else if (e.key === ']') jumpMoment(1)
+      else if (e.key === '[') jumpMoment(-1)
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [undo, redo, flip, toggleThreat])
+  }, [undo, redo, flip, toggleThreat, jumpMoment])
 
   const squareStyles: Record<string, React.CSSProperties> = {}
   for (const sq of highlights.attacked) squareStyles[sq] = glow('255, 152, 0')
@@ -229,10 +263,22 @@ export default function App() {
           error={batchError}
           onAnalyze={startBatch}
           onCancel={() => batchRef.current?.cancel()}
+          series={series}
+          current={game.index}
+          moments={moments}
+          onJump={(i) => setGame((g) => jumpTo(g, i))}
+          onStep={jumpMoment}
         />
       )
       break
-    case 'load': tabBody = <LoadPanel onLoad={(g) => { setGame(g); setChosenTab(null) }} />; break
+    case 'load':
+      tabBody = (
+        <LoadPanel
+          onLoad={(g, note) => { setGame(g); setChosenTab(null); setNotice(note ?? null) }}
+          onLoadAndAnalyze={(g, note) => { setGame(g); setChosenTab('summary'); setAnalyzeAfterLoad(true); setNotice(note ?? null) }}
+        />
+      )
+      break
   }
 
   const turnWhite = chess.turn() === 'w'
@@ -252,6 +298,13 @@ export default function App() {
           <button className="btn ghost small" onClick={() => setChosenTab('load')}>Load game</button>
         </div>
       </header>
+
+      {notice && (
+        <div className="notice" role="status">
+          <span>{notice}</span>
+          <button onClick={() => setNotice(null)} aria-label="Dismiss">×</button>
+        </div>
+      )}
 
       <main className={`workspace${wide ? ' wide' : ''}`}>
         <section className="board-col">
@@ -299,8 +352,10 @@ export default function App() {
             onToggle={setEngineOn}
             status={engine.status}
             lines={engine.lines}
+            source={engine.source}
             error={engine.error}
             onRetry={engine.retry}
+            cloud={cloud}
           />
           <Tabs tabs={tabs} active={activeTab} onChange={(id) => setChosenTab(id as TabId)} />
           <div className="tab-body" role="tabpanel" id="tab-panel" aria-labelledby={`tab-${activeTab}`}>

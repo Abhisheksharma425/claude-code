@@ -1,9 +1,16 @@
 import { CATEGORIES, CATEGORY_META, type GameSummary as Summary } from '../lib/classify'
+import { momentSummary, type KeyMoment } from '../lib/keyMoments'
+import EvalGraph from './EvalGraph'
 
 interface Props {
   summary: Summary
   hasMoves: boolean
-  progress: { done: number; total: number } | null
+  progress: { done: number; total: number; cloud: number } | null
+  series: (number | null)[]
+  current: number
+  moments: KeyMoment[]
+  onJump: (index: number) => void
+  onStep: (dir: 1 | -1) => void
   error: string | null
   onAnalyze: () => void
   onCancel: () => void
@@ -11,7 +18,7 @@ interface Props {
 
 const pct = (a: number | null) => (a === null ? '–' : `${a.toFixed(0)}%`)
 
-export default function GameSummary({ summary, hasMoves, progress, error, onAnalyze, onCancel }: Props) {
+export default function GameSummary({ summary, hasMoves, progress, error, onAnalyze, onCancel, series, current, moments, onJump, onStep }: Props) {
   const { white, black } = summary
   const unrated = white.total + black.total - white.rated - black.rated
 
@@ -19,6 +26,7 @@ export default function GameSummary({ summary, hasMoves, progress, error, onAnal
 
   return (
     <div className="summary">
+      <EvalGraph series={series} current={current} moments={moments} onJump={onJump} />
       <div className="acc-tiles">
         <div className="acc-tile"><span className="acc-who"><i className="pawn white" /> White</span><strong>{pct(white.accuracy)}</strong><span className="muted">accuracy</span></div>
         <div className="acc-tile"><span className="acc-who"><i className="pawn black" /> Black</span><strong>{pct(black.accuracy)}</strong><span className="muted">accuracy</span></div>
@@ -26,7 +34,7 @@ export default function GameSummary({ summary, hasMoves, progress, error, onAnal
 
       {progress ? (
         <div className="analyze-progress">
-          <p className="muted">Analyzing the game… {progress.done}/{progress.total} positions</p>
+          <p className="muted">Analyzing the game… {progress.done}/{progress.total} positions{progress.cloud > 0 ? ` (${progress.cloud} from Lichess cloud)` : ''}</p>
           <progress value={progress.done} max={Math.max(1, progress.total)} />
           <button className="btn ghost small" onClick={onCancel}>Cancel</button>
         </div>
@@ -36,6 +44,33 @@ export default function GameSummary({ summary, hasMoves, progress, error, onAnal
         </button>
       )}
       {error && <p className="callout error" role="alert">{error}</p>}
+
+      <section className="moments">
+        <div className="moments-head">
+          <h3>Key moments <span className="count">{moments.length}</span></h3>
+          <div className="moments-nav">
+            <button className="icon-btn small" onClick={() => onStep(-1)} title="Previous key moment ([)" aria-label="Previous key moment">‹</button>
+            <button className="icon-btn small" onClick={() => onStep(1)} title="Next key moment (])" aria-label="Next key moment">›</button>
+          </div>
+        </div>
+        {moments.length === 0 ? (
+          <p className="empty">
+            {unrated === 0 ? 'No blunders, mistakes or missed mates. Nicely played!' : 'Analyze the full game to find the blunders and mistakes.'}
+          </p>
+        ) : (
+          <ul>
+            {moments.map((m) => (
+              <li key={m.ply}>
+                <button className={m.ply === current ? 'active' : ''} onClick={() => onJump(m.ply)}>
+                  <span className={`badge cat-${m.category}`}>{CATEGORY_META[m.category].symbol}</span>
+                  <b>{m.label}</b>
+                  <span className="muted">{momentSummary(m, CATEGORY_META[m.category].label)}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
 
       <table>
         <thead>

@@ -1,4 +1,6 @@
 import { Chess } from 'chess.js'
+import type { AnalysisSource } from '../lib/analysisStore'
+import type { CloudStatus } from '../lib/cloudEval'
 import { ENGINE_DEPTH } from '../lib/engine'
 import type { EngineStatus } from '../lib/useEngine'
 import { evalInWords, formatLine, pvToSan, scoreLabel, type EngineLine } from '../lib/uci'
@@ -9,11 +11,22 @@ interface Props {
   onToggle: (on: boolean) => void
   status: EngineStatus
   lines: EngineLine[]
+  source?: AnalysisSource
   error?: string
   onRetry: () => void
+  cloud: { enabled: boolean; status: CloudStatus; setEnabled: (on: boolean) => void }
 }
 
-export default function EnginePanel({ fen, enabled, onToggle, status, lines, error, onRetry }: Props) {
+const clock = (ms?: number) => (ms ? new Date(ms).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '')
+
+function cloudNote(enabled: boolean, status: CloudStatus): string {
+  if (!enabled) return 'Lichess cloud is off: local Stockfish only.'
+  if (status.state === 'rate-limited') return `Lichess asked us to slow down. Using the local engine until ${clock(status.until)}.`
+  if (status.state === 'unavailable') return `Can't reach Lichess. Using the local engine until ${clock(status.until)}.`
+  return 'Lichess cloud is on: positions others have analysed load instantly.'
+}
+
+export default function EnginePanel({ fen, enabled, onToggle, status, lines, source, error, onRetry, cloud }: Props) {
   const top = lines[0]
   const chess = new Chess(fen)
 
@@ -28,7 +41,7 @@ export default function EnginePanel({ fen, enabled, onToggle, status, lines, err
 
   const progress =
     status === 'thinking' && top ? `Thinking… depth ${top.depth}/${ENGINE_DEPTH}`
-    : status === 'done' && top ? `Stockfish · depth ${top.depth}`
+    : status === 'done' && top ? `${source === 'cloud' ? 'Lichess cloud' : 'Stockfish'} · depth ${top.depth}`
     : status === 'loading' ? 'Loading engine…'
     : ''
   const pct = status === 'done' ? 100 : status === 'thinking' && top ? Math.min(100, (top.depth / ENGINE_DEPTH) * 100) : 0
@@ -67,6 +80,17 @@ export default function EnginePanel({ fen, enabled, onToggle, status, lines, err
           })}
         </ol>
       )}
+      <div className="engine-foot">
+        <button
+          className={`chip-toggle${cloud.enabled ? ' on' : ''}${cloud.enabled && cloud.status.state !== 'ok' ? ' paused' : ''}`}
+          aria-pressed={cloud.enabled}
+          onClick={() => cloud.setEnabled(!cloud.enabled)}
+          title="Use Lichess's free cloud evaluations for positions that have already been analysed. Turning this off keeps every position on your computer."
+        >
+          <i aria-hidden /> Lichess cloud
+        </button>
+        <span className="muted">{cloudNote(cloud.enabled, cloud.status)}</span>
+      </div>
     </section>
   )
 }

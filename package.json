@@ -3,8 +3,11 @@
   "private": true,
   "scripts": {
     "install:all": "npm --prefix frontend install && npm --prefix backend install",
+    "dev": "node scripts/dev.mjs",
     "dev:frontend": "npm --prefix frontend run dev",
     "dev:backend": "npm --prefix backend run dev",
+    "build": "npm --prefix frontend run build",
+    "typecheck": "npm --prefix frontend exec tsc -- -b --noEmit && npm --prefix backend exec tsc -- --noEmit",
     "test": "npm --prefix frontend test && npm --prefix backend test"
   }
 }

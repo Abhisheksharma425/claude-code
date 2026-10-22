@@ -2,23 +2,24 @@ import { useState } from 'react'
 import { parseInput, type GameState } from '../lib/game'
 
 interface Props {
-  onLoad: (game: GameState) => void
+  onLoad: (game: GameState, note?: string) => void
+  /** Load the game and immediately analyse all of it. */
+  onLoadAndAnalyze: (game: GameState, note?: string) => void
 }
 
 const EXAMPLE = '1. e4 e5 2. Nf3 Nc6 3. Bc4 Nf6 4. Ng5 d5 5. exd5 Nxd5 6. Nxf7 Kxf7 7. Qf3+ Ke6 8. Nc3 Nb4 9. d4 c6'
 
-export default function LoadPanel({ onLoad }: Props) {
+export default function LoadPanel({ onLoad, onLoadAndAnalyze }: Props) {
   const [text, setText] = useState('')
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null)
 
-  const load = (input: string) => {
+  const load = (input: string, analyze = false) => {
     const r = parseInput(input)
     if (r.ok) {
-      onLoad(r.game)
-      setMessage({
-        ok: true,
-        text: r.kind === 'fen' ? 'Position loaded.' : `Game loaded (${r.game.plies.length} moves).`,
-      })
+      if (analyze && r.game.plies.length > 0) onLoadAndAnalyze(r.game, r.note)
+      else onLoad(r.game, r.note)
+      const base = r.kind === 'fen' ? 'Position loaded.' : `Game loaded (${r.game.plies.length} moves).`
+      setMessage({ ok: true, text: r.note ? `${base} ${r.note}` : base })
     } else {
       setMessage({ ok: false, text: r.error })
     }
@@ -37,6 +38,7 @@ export default function LoadPanel({ onLoad }: Props) {
       />
       <div className="row">
         <button className="btn primary" onClick={() => load(text)}>Load</button>
+        <button className="btn" onClick={() => load(text, true)} title="Load the game, then rate every move">Load and analyze</button>
         <button className="btn ghost" onClick={() => { setText(EXAMPLE); load(EXAMPLE) }}>Try an example</button>
         <button className="btn ghost" onClick={() => { setText(''); setMessage(null) }}>Clear</button>
       </div>
