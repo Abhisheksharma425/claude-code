@@ -12,9 +12,17 @@ export function moveTokens(text: string): Set<string> {
   return new Set((text.match(MOVE_RE) ?? []).map(normalize))
 }
 
-/** Moves mentioned in the explanation that were not in the data we sent. */
-export function findUnknownMoves(explanation: Explanation, sentData: string): string[] {
+/** Every string anywhere inside a value. */
+function allStrings(v: unknown, out: string[] = []): string[] {
+  if (typeof v === 'string') out.push(v)
+  else if (Array.isArray(v)) v.forEach((x) => allStrings(x, out))
+  else if (typeof v === 'object' && v !== null) Object.values(v).forEach((x) => allStrings(x, out))
+  return out
+}
+
+/** Moves mentioned anywhere in the explanation (including the overview) that were not in the data we sent. */
+export function findUnknownMoves(explanation: Explanation | Record<string, unknown>, sentData: string): string[] {
   const allowed = moveTokens(sentData)
-  const used = moveTokens(Object.values(explanation).join('\n'))
+  const used = moveTokens(allStrings(explanation).join('\n'))
   return [...used].filter((m) => !allowed.has(m))
 }

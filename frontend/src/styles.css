@@ -346,3 +346,39 @@ progress { width: 100%; height: 8px; accent-color: var(--accent); }
   .tab-body { padding: 14px 12px; }
   .score-chip { min-width: 58px; }
 }
+
+/* ---------- Big Picture overview ---------- */
+.overview { display: flex; flex-direction: column; gap: 18px; }
+.overview-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 14px; }
+.overview section > h3 { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.07em; color: var(--muted); margin-bottom: 6px; }
+.overview p { font-size: 0.95rem; line-height: 1.5; }
+.segmented { display: inline-flex; padding: 3px; gap: 2px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px; }
+.segmented button { font: inherit; font-size: 0.85rem; font-weight: 600; color: var(--muted); background: transparent; border: 0; padding: 5px 14px; border-radius: 7px; cursor: pointer; }
+.segmented button.active { background: var(--surface); color: var(--text); box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15); }
+.plans { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+@media (max-width: 480px) { .plans { grid-template-columns: 1fr; } }
+.plan { background: var(--surface-2); border-radius: 12px; padding: 10px 12px; }
+.plan-who { display: flex; align-items: center; gap: 7px; font-weight: 700; font-size: 0.85rem; margin-bottom: 4px; }
+.purpose { background: var(--surface-2); border-radius: 12px; padding: 10px 12px; }
+.purpose + .purpose { margin-top: 8px; }
+.purpose-head { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 4px; }
+.purpose-label { font-size: 0.78rem; color: var(--muted); font-weight: 600; }
+.san { font-size: 1rem; }
+.tag { font-size: 0.74rem; font-weight: 700; padding: 2px 9px; border-radius: 999px; color: #fff; background: #667085; }
+.tag-develops { background: #2f7de1; }
+.tag-controls-center { background: #0f9d8a; }
+.tag-attacks { background: #d93025; }
+.tag-defends { background: #2f855a; }
+.tag-creates-threat { background: #e67e22; }
+.tag-trades { background: #8e6bd6; }
+.tag-king-safety { background: #4c5fd5; }
+.tag-prepares-plan { background: #667085; }
+.tag-sets-trap { background: #c2417c; }
+.story { list-style: none; padding: 0; display: grid; gap: 10px; counter-reset: step; }
+.story li { display: grid; grid-template-columns: 4.6rem 1fr; gap: 10px; align-items: baseline; }
+.san-chip { font-weight: 700; font-size: 0.82rem; font-variant-numeric: tabular-nums; background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 3px 8px; text-align: center; white-space: nowrap; }
+.features { display: grid; gap: 0; }
+.features > div { padding: 9px 0; border-bottom: 1px solid var(--border); }
+.features > div:last-child { border-bottom: 0; }
+.features dt { font-size: 0.8rem; font-weight: 600; color: var(--muted); margin-bottom: 2px; }
+.features dd { margin: 0; font-size: 0.93rem; line-height: 1.5; }

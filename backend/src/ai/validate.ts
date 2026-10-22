@@ -1,4 +1,4 @@
-import type { ExplainRequest } from './types.js'
+import { PURPOSE_TAGS, type ExplainRequest, type Purposes, type PurposeTag } from './types.js'
 
 export class ValidationError extends Error {}
 
@@ -35,6 +35,17 @@ function line(v: unknown, name: string) {
   return { score: str(o.score, `${name}.score`, 20), moves: str(o.moves, `${name}.moves`, 300) }
 }
 
+function purposes(v: unknown, name: string): Purposes {
+  const o = obj(v, name)
+  return {
+    tags: arr(o.tags, `${name}.tags`, 9, (x, i) => {
+      if (typeof x !== 'string' || !(PURPOSE_TAGS as readonly string[]).includes(x)) throw new ValidationError(`"${name}.tags[${i}]" is not a known purpose.`)
+      return x as PurposeTag
+    }),
+    notes: arr(o.notes, `${name}.notes`, 10, (x, i) => str(x, `${name}.notes[${i}]`, 200)),
+  }
+}
+
 /** Checks and rebuilds the request so only known, size-limited fields reach the prompt. */
 export function validateExplainRequest(body: unknown): ExplainRequest {
   const b = obj(body, 'body')
@@ -60,6 +71,7 @@ export function validateExplainRequest(body: unknown): ExplainRequest {
               san: str(o.san, 'lastMove.san', 20),
               by: side(o.by, 'lastMove.by'),
               label: str(o.label, 'lastMove.label', 80),
+              purposes: purposes(o.purposes, 'lastMove.purposes'),
               classification:
                 c === null || c === undefined
                   ? null
@@ -81,11 +93,21 @@ export function validateExplainRequest(body: unknown): ExplainRequest {
       bestMoveSan: engine.bestMoveSan === null ? null : str(engine.bestMoveSan, 'engine.bestMoveSan', 20),
       evalBefore: engine.evalBefore === null || engine.evalBefore === undefined ? null : score(engine.evalBefore, 'engine.evalBefore'),
       evalAfter: score(engine.evalAfter, 'engine.evalAfter'),
-      topLine: line(engine.topLine, 'engine.topLine'),
+      topLine: (() => {
+        const t = obj(engine.topLine, 'engine.topLine')
+        return {
+          ...line(t, 'engine.topLine'),
+          plies: arr(t.plies, 'engine.topLine.plies', 8, (x, i) => str(x, `engine.topLine.plies[${i}]`, 20)),
+          firstMoveBy: side(t.firstMoveBy, 'engine.topLine.firstMoveBy'),
+        }
+      })(),
+      bestMovePurposes:
+        engine.bestMovePurposes === null || engine.bestMovePurposes === undefined ? null : purposes(engine.bestMovePurposes, 'engine.bestMovePurposes'),
       otherLines: arr(engine.otherLines, 'engine.otherLines', 3, (x, i) => line(x, `engine.otherLines[${i}]`)),
     },
     facts: {
       phase: str(facts.phase, 'facts.phase', 30),
+      phaseTip: str(facts.phaseTip, 'facts.phaseTip', 200),
       material: str(facts.material, 'facts.material', 120),
       notes: arr(facts.notes, 'facts.notes', 30, (x, i) => {
         const o = obj(x, `facts.notes[${i}]`)

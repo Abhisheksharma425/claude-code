@@ -9,6 +9,7 @@ import FactsPanel from './components/FactsPanel'
 import GameSummary from './components/GameSummary'
 import LoadPanel from './components/LoadPanel'
 import MovesPanel from './components/MovesPanel'
+import OverviewPanel, { type Detail } from './components/OverviewPanel'
 import Tabs, { type TabDef } from './components/Tabs'
 import ThreatsPanel from './components/ThreatsPanel'
 import {
@@ -21,6 +22,7 @@ import { analyzePosition } from './lib/facts'
 import { buildThreatLists, highlightSquares } from './lib/threats'
 import { buildExplainRequest } from './lib/explainPayload'
 import { positionKey } from './lib/analysisStore'
+import { pvToSan } from './lib/uci'
 import { useEngine } from './lib/useEngine'
 import { useExplanation } from './lib/useExplanation'
 import { useMediaQuery } from './lib/useMediaQuery'
@@ -36,7 +38,7 @@ const DARK_SQUARE = '#86a1b3'
 const BOARD_STYLE = { borderRadius: 8, overflow: 'hidden', boxShadow: '0 6px 24px rgba(15, 23, 42, 0.18)' }
 const NOTATION = { fontSize: 11, fontWeight: 700 }
 
-type TabId = 'moves' | 'coach' | 'threats' | 'facts' | 'summary' | 'load'
+type TabId = 'moves' | 'coach' | 'overview' | 'threats' | 'facts' | 'summary' | 'load'
 
 export default function App() {
   const [game, setGame] = useState<GameState>(() => newGame())
@@ -100,6 +102,22 @@ export default function App() {
   const fenBefore = game.index > 0 ? (game.index > 1 ? game.plies[game.index - 2].fen : game.startFen) : null
   const explainKey = `${positionKey(fen)}|${last?.san ?? ''}|${viewer}|${lastClass?.category ?? ''}`
   const explanation = useExplanation(explainKey)
+  // Simple/Detailed is only a display choice (both versions come in the same response), so remember it per browser.
+  const [detail, setDetailState] = useState<Detail>(() => {
+    try {
+      return localStorage.getItem('detail') === 'detailed' ? 'detailed' : 'simple'
+    } catch {
+      return 'simple'
+    }
+  })
+  const setDetail = (d: Detail) => {
+    setDetailState(d)
+    try {
+      localStorage.setItem('detail', d)
+    } catch {
+      // private mode etc.: the toggle still works for this visit
+    }
+  }
   const explainBlocked =
     engine.status === 'gameover' ? 'The game is over, so there is nothing to explain.'
     : !engineOn ? 'Turn the engine on: the coach explains Stockfish’s analysis.'
@@ -111,6 +129,7 @@ export default function App() {
       lines: engine.lines,
       linesBefore: fenBefore ? (getAnalysis(fenBefore) ?? null) : null,
       lastPly: last,
+      fenBefore,
       classification: lastClass,
     })
     if (req) void explanation.request(req)
@@ -170,6 +189,7 @@ export default function App() {
   const tabs: TabDef[] = [
     ...(wide ? [] : [{ id: 'moves', label: 'Moves' }]),
     { id: 'coach', label: 'Coach' },
+    { id: 'overview', label: 'Overview' },
     { id: 'threats', label: 'Threats', alert: danger },
     { id: 'facts', label: 'Facts' },
     { id: 'summary', label: 'Summary' },
@@ -184,6 +204,20 @@ export default function App() {
   switch (activeTab) {
     case 'moves': tabBody = movesPanel; break
     case 'coach': tabBody = <ExplainPanel state={explanation.state} blockedReason={explainBlocked} onExplain={explainNow} />; break
+    case 'overview':
+      tabBody = (
+        <OverviewPanel
+          state={explanation.state}
+          blockedReason={explainBlocked}
+          onExplain={explainNow}
+          detail={detail}
+          onDetail={setDetail}
+          fen={fen}
+          playedSan={last?.san ?? null}
+          bestSan={engine.lines[0]?.pv[0] ? pvToSan(fen, [engine.lines[0].pv[0]])[0] ?? null : null}
+        />
+      )
+      break
     case 'threats': tabBody = <ThreatsPanel lists={lists} threat={threat} threatOn={threatOn} engineOn={engineOn} onToggle={toggleThreat} />; break
     case 'facts': tabBody = <FactsPanel facts={facts} />; break
     case 'summary':

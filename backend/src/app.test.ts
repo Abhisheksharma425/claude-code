@@ -2,14 +2,14 @@ import type { Server } from 'node:http'
 import type { AddressInfo } from 'node:net'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { createApp } from './app.js'
-import { sampleRequest, goodAnswer } from './ai/fixtures.js'
+import { sampleRequest, goodAnswer, goodModelAnswer } from './ai/fixtures.js'
 import type { AIProvider } from './ai/provider.js'
 import { AIError } from './ai/types.js'
 
 describe('HTTP API', () => {
   let server: Server
   let base: string
-  let provider: AIProvider | AIError = { name: 'fake', complete: async () => JSON.stringify(goodAnswer) }
+  let provider: AIProvider | AIError = { name: 'fake', complete: async () => JSON.stringify(goodModelAnswer) }
 
   beforeAll(async () => {
     const app = createApp(() => {
@@ -39,7 +39,7 @@ describe('HTTP API', () => {
     const res = await post(sampleRequest)
     expect(res.status).toBe(503)
     expect(await res.json()).toEqual({ error: { code: 'not_configured', message: 'Add your key.' } })
-    provider = { name: 'fake', complete: async () => JSON.stringify(goodAnswer) }
+    provider = { name: 'fake', complete: async () => JSON.stringify(goodModelAnswer) }
   })
 
   it('passes provider errors to the browser with their code', async () => {
@@ -47,7 +47,7 @@ describe('HTTP API', () => {
     const res = await post(sampleRequest)
     expect(res.status).toBe(429)
     expect((await res.json()).error.code).toBe('rate_limit')
-    provider = { name: 'fake', complete: async () => JSON.stringify(goodAnswer) }
+    provider = { name: 'fake', complete: async () => JSON.stringify(goodModelAnswer) }
   })
 
   it('rejects bad bodies', async () => {

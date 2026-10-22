@@ -26,8 +26,8 @@ Build ONE step at a time. After each step: run, test, tell the user what to chec
 - [x] Step 2: Stockfish engine (lite single-threaded WASM, depth 16, MultiPV 3, eval bar, plain-words eval, top 3 lines, green best-move arrow, mate scores, stop-on-change, on/off toggle) — approved
 - [x] Step 3: Move classification (badges in move list, better move shown, accuracy % + counts per side, basic "Analyze game" button) — approved
 - [x] Step 4: Position facts and threats (unit-tested; facts panel, Your/Opponent's threats lists, red/orange highlights, Show threat button + X key) — approved
-- [x] Step 5: AI explanations (OpenAI via /api/explain, provider interface, structured outputs, coach panel with loading/cache/errors) — awaiting user OK
-- [ ] Step 6: Big Picture overview
+- [x] Step 5: AI explanations (OpenAI via /api/explain, provider interface, structured outputs, coach panel with loading/cache/errors) — approved
+- [x] Step 6: Big Picture overview (same /api/explain response; Overview tab; Simple/Detailed toggle; code-computed purpose tags; engine line story) — awaiting user OK
 - [ ] Step 7: Speed and polish (Lichess cloud eval, analyze full game, README)
 
 ## Notes
@@ -95,3 +95,19 @@ Build ONE step at a time. After each step: run, test, tell the user what to chec
 - Styling: design tokens in `:root` + dark mode via `prefers-color-scheme` in `styles.css`; board is soft blue-grey so the
   green (best) / red (threat) arrows and yellow last-move highlight contrast. Reusable classes: `.btn(.primary/.ghost/.small/.wide)`,
   `.callout(.error/.ok/.warn/.danger)`, `.badge`, `.empty-state`.
+
+## Big Picture notes (Step 6)
+- One request, one response: `/api/explain` now returns `{moveExplanation,lastMoveFeedback,threats,lesson, overview}`. The Coach and
+  Overview tabs share the same fetched data (`ExplainGate` handles loading/error/ask states), so asking in either tab fills both.
+- `overview` = phase, whoIsBetter, plans.{white,black}, playedMove/bestMove `{tag, reason}`, story[], keyFeatures.{pawnStructure,
+  openFiles,weakSquares,pieceActivity}. Every prose section is `{simple, detailed}` (1 sentence / 2-3), so the Simple/Detailed toggle is
+  instant and free; the choice is remembered in localStorage (display only). Purpose `reason` is a single sentence.
+- CORE RULE enforcement, in code: (1) purpose tags are computed by `frontend/src/lib/purposes.ts` (`movePurposes`: Develops, Controls
+  center, Attacks, Defends, Creates threat, Trades, King safety, Prepares plan, Sets trap) and sent as candidates with notes
+  ("Attacks: attacks the rook on a8"); the backend coerces any other tag to the first candidate; "None" when there is no move.
+  (2) Story moves come from the engine's top line (`topLine.plies`); the AI only writes the words, the backend zips them to the moves
+  and requires exactly one step per ply. (3) The move guard scans every string in the overview, retrying once then erroring.
+- `facts.ts` gained piece activity (mobility-based active/passive pieces) and exports `HOME_SQUARES`; `factLines` mentions it.
+- "Sets trap" = bait: after the move the opponent has a capture after which the mover has mate in one (`setsTrap`).
+- Cost note: the overview roughly doubles the response size (both versions of each text). If latency/cost matters, add an `include`
+  flag to the request and split Coach/Overview into separate calls.
