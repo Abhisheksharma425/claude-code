@@ -1,12 +1,16 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Chess } from 'chess.js'
 import { Chessboard, type PieceDropHandlerArgs } from 'react-chessboard'
+import EnginePanel from './components/EnginePanel'
+import EvalBar from './components/EvalBar'
 import LoadPanel from './components/LoadPanel'
 import MoveList from './components/MoveList'
 import {
   canRedo, canUndo, fenAt, jumpTo, lastPly, newGame, playMove, type GameState,
 } from './lib/game'
+import { useEngine } from './lib/useEngine'
 
+const BEST_ARROW_COLOR = 'rgba(34, 160, 60, 0.85)'
 const LAST_MOVE_STYLE = { backgroundColor: 'rgba(255, 213, 0, 0.4)' }
 
 export default function App() {
@@ -16,6 +20,12 @@ export default function App() {
   const fen = fenAt(game)
   const chess = useMemo(() => new Chess(fen), [fen])
   const last = lastPly(game)
+  const [engineOn, setEngineOn] = useState(true)
+  const engine = useEngine(fen, engineOn)
+  const bestUci = engine.lines[0]?.pv[0]
+  const arrows = bestUci
+    ? [{ startSquare: bestUci.slice(0, 2), endSquare: bestUci.slice(2, 4), color: BEST_ARROW_COLOR }]
+    : []
 
   const undo = useCallback(() => setGame((g) => jumpTo(g, g.index - 1)), [])
   const redo = useCallback(() => setGame((g) => jumpTo(g, g.index + 1)), [])
@@ -63,6 +73,8 @@ export default function App() {
       <main>
         <section className="board-col">
           <div className="board-wrap">
+            <EvalBar score={engine.lines[0]?.score ?? null} orientation={orientation} />
+            <div className="board">
             <Chessboard
               options={{
                 id: 'main-board',
@@ -71,9 +83,12 @@ export default function App() {
                 onPieceDrop,
                 canDragPiece: ({ piece }) => piece.pieceType[0] === chess.turn(),
                 squareStyles,
+                arrows,
+                allowDrawingArrows: false,
                 animationDurationInMs: 150,
               }}
             />
+            </div>
           </div>
           <div className="controls">
             <button onClick={undo} disabled={!canUndo(game)} title="Undo (←)">◀ Undo</button>
@@ -84,6 +99,15 @@ export default function App() {
         </section>
 
         <aside className="side-col">
+          <EnginePanel
+            fen={fen}
+            enabled={engineOn}
+            onToggle={setEngineOn}
+            status={engine.status}
+            lines={engine.lines}
+            error={engine.error}
+            onRetry={engine.retry}
+          />
           <div className="card">
             <h2>Moves</h2>
             <MoveList game={game} onJump={(i) => setGame((g) => jumpTo(g, i))} />

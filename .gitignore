@@ -221,3 +221,5 @@ __marimo__/
 node_modules/
 dist/
 .env.local
+# Stockfish engine files are copied from node_modules by frontend/scripts/copy-engine.mjs
+frontend/public/engine/

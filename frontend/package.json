@@ -7,13 +7,18 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
-    "test": "vitest run"
+    "test": "vitest run",
+    "copy-engine": "node scripts/copy-engine.mjs",
+    "postinstall": "node scripts/copy-engine.mjs",
+    "predev": "node scripts/copy-engine.mjs",
+    "prebuild": "node scripts/copy-engine.mjs"
   },
   "dependencies": {
     "chess.js": "^1.4.0",
     "react": "^19.3.1",
     "react-chessboard": "^5.12.1",
-    "react-dom": "^19.3.1"
+    "react-dom": "^19.3.1",
+    "stockfish": "^19.0.1"
   },
   "devDependencies": {
     "@types/react": "^19.3.0",
