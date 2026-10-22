@@ -4,6 +4,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { explain } from './explain.js'
 import { sampleRequest, goodAnswer, goodModelAnswer } from './fixtures.js'
 import { findUnknownMoves, moveTokens } from './guard.js'
+import { AnthropicProvider } from './anthropic.js'
 import { OpenAIProvider } from './openai.js'
 import { buildUserMessage, parseExplanation, SYSTEM_PROMPT } from './prompt.js'
 import { createProvider, type AIProvider, type CompletionRequest } from './provider.js'
@@ -194,11 +195,18 @@ describe('explain service', () => {
 describe('createProvider', () => {
   it('needs a key and a model', () => {
     expect(() => createProvider({})).toThrow(/OPENAI_API_KEY and OPENAI_MODEL/)
+    expect(() => createProvider({}, 'anthropic')).toThrow(/ANTHROPIC_API_KEY and ANTHROPIC_MODEL/)
     expect(() => createProvider({ OPENAI_API_KEY: 'k' })).toThrow(AIError)
     expect(createProvider({ OPENAI_API_KEY: 'k', OPENAI_MODEL: 'm' }).name).toBe('openai')
   })
+  it('picks Claude by name, or by AI_PROVIDER when no name is given', () => {
+    const env = { OPENAI_API_KEY: 'k', OPENAI_MODEL: 'm', ANTHROPIC_API_KEY: 'k', ANTHROPIC_MODEL: 'm' }
+    expect(createProvider(env, 'anthropic').name).toBe('anthropic')
+    expect(createProvider(env, 'openai').name).toBe('openai')
+    expect(createProvider({ ...env, AI_PROVIDER: 'anthropic' }).name).toBe('anthropic')
+  })
   it('rejects unknown providers', () => {
-    expect(() => createProvider({ AI_PROVIDER: 'wat' })).toThrow(/Unknown AI_PROVIDER/)
+    expect(() => createProvider({ AI_PROVIDER: 'wat' })).toThrow(/Unknown AI provider/)
   })
 })
 
@@ -276,6 +284,91 @@ describe('OpenAIProvider against a mock OpenAI server', () => {
 
   it('reports an unreachable server', async () => {
     const p = new OpenAIProvider({ apiKey: 'k', model: 'm', baseURL: 'http://127.0.0.1:1/v1' })
+    await expect(p.complete({ system: 's', user: 'u', schemaName: 'n', schema: {} })).rejects.toMatchObject({ code: 'unavailable' })
+  })
+})
+
+describe('AnthropicProvider against a mock Anthropic server', () => {
+  let server: Server
+  let baseURL: string
+  let mode = 'ok'
+  let lastBody: any
+  let lastKey: string | undefined
+
+  const message = (stop_reason: string, content: unknown[]) => ({
+    id: 'msg_x', type: 'message', role: 'assistant', model: 'm', content, stop_reason, stop_sequence: null,
+    usage: { input_tokens: 1, output_tokens: 1 },
+  })
+
+  beforeAll(async () => {
+    server = createServer((req, res) => {
+      let body = ''
+      req.on('data', (c) => (body += c))
+      req.on('end', () => {
+        lastBody = JSON.parse(body || '{}')
+        lastKey = req.headers['x-api-key']?.toString() ?? req.headers.authorization?.replace(/^Bearer /, '')
+        const send = (status: number, json: unknown) => {
+          res.writeHead(status, { 'content-type': 'application/json' })
+          res.end(JSON.stringify(json))
+        }
+        const err = (status: number, type: string, msg: string) => send(status, { type: 'error', error: { type, message: msg } })
+        switch (mode) {
+          case 'ok':
+            return send(200, message('end_turn', [{ type: 'thinking', thinking: '', signature: 's' }, { type: 'text', text: JSON.stringify(goodModelAnswer) }]))
+          case 'refusal': return send(200, message('refusal', []))
+          case 'length': return send(200, message('max_tokens', [{ type: 'text', text: '{"a"' }]))
+          case 'empty': return send(200, message('end_turn', []))
+          case '401': return err(401, 'authentication_error', 'invalid x-api-key sk-secret-key')
+          case 'rate': return err(429, 'rate_limit_error', 'Rate limit reached')
+          case 'model': return err(404, 'not_found_error', 'model: x')
+          case 'credit': return err(400, 'invalid_request_error', 'Your credit balance is too low to access the Anthropic API.')
+          case '400': return err(400, 'invalid_request_error', 'Unsupported thing')
+          case '500': return err(500, 'api_error', 'boom')
+          case '529': return err(529, 'overloaded_error', 'Overloaded')
+        }
+      })
+    })
+    await new Promise<void>((r) => server.listen(0, '127.0.0.1', r))
+    baseURL = `http://127.0.0.1:${(server.address() as AddressInfo).port}`
+  })
+  afterAll(() => new Promise<void>((r) => server.close(() => r())))
+
+  const run = async (m: string) => {
+    mode = m
+    const p = new AnthropicProvider({ apiKey: 'sk-ant-test', model: 'test-model', baseURL })
+    return p.complete({ system: 's', user: 'u', schemaName: 'chess_explanation', schema: { type: 'object' } })
+  }
+
+  it('sends a structured-output request with the key and the model, and ignores thinking blocks', async () => {
+    expect(JSON.parse(await run('ok'))).toEqual(goodModelAnswer)
+    expect(lastKey).toBe('sk-ant-test')
+    expect(lastBody.model).toBe('test-model')
+    expect(lastBody.system).toBe('s')
+    expect(lastBody.messages).toEqual([{ role: 'user', content: 'u' }])
+    expect(lastBody.output_config).toEqual({ format: { type: 'json_schema', schema: { type: 'object' } } })
+  })
+
+  it.each([
+    ['401', 'bad_key', 401, /ANTHROPIC_API_KEY/],
+    ['credit', 'no_credit', 402, /no credit/],
+    ['rate', 'rate_limit', 429, /too fast/],
+    ['model', 'bad_model', 400, /test-model/],
+    ['400', 'bad_request', 400, /structured outputs/],
+    ['500', 'unavailable', 503, /Claude is having problems/],
+    ['529', 'unavailable', 503, /overloaded/],
+    ['refusal', 'refused', 502, /declined/],
+    ['length', 'bad_response', 502, /ran out of space/],
+    ['empty', 'bad_response', 502, /empty answer/],
+  ])('maps the %s case to a clear message', async (m, code, status, text) => {
+    const e = await run(m).catch((x) => x)
+    expect(e).toBeInstanceOf(AIError)
+    expect(e).toMatchObject({ code, status })
+    expect(e.message).toMatch(text)
+    expect(e.message).not.toContain('sk-secret-key')
+  })
+
+  it('reports an unreachable server', async () => {
+    const p = new AnthropicProvider({ apiKey: 'k', model: 'm', baseURL: 'http://127.0.0.1:1' })
     await expect(p.complete({ system: 's', user: 'u', schemaName: 'n', schema: {} })).rejects.toMatchObject({ code: 'unavailable' })
   })
 })

@@ -11,7 +11,7 @@ computed facts. It never chooses moves itself.**
 ## Stack
 - `frontend/`: React + Vite + TypeScript, chess.js (rules), react-chessboard v5 (board; uses the `options` prop),
   Stockfish WASM (stockfish.js) in a Web Worker (Step 2).
-- `backend/`: small Node/Express (TypeScript, run with tsx) for AI calls via the official `openai` SDK (Step 5).
+- `backend/`: small Node/Express (TypeScript, run with tsx) for AI calls via the official `openai` and `@anthropic-ai/sdk` SDKs (Step 5; Claude added later).
   Secrets live in `backend/.env` (gitignored); see `.env.example`. The browser never sees the key.
 - Vite dev server proxies `/api` to the backend on :3001.
 
@@ -96,6 +96,19 @@ Build ONE step at a time. After each step: run, test, tell the user what to chec
 - Styling: design tokens in `:root` + dark mode via `prefers-color-scheme` in `styles.css`; board is soft blue-grey so the
   green (best) / red (threat) arrows and yellow last-move highlight contrast. Reusable classes: `.btn(.primary/.ghost/.small/.wide)`,
   `.callout(.error/.ok/.warn/.danger)`, `.badge`, `.empty-state`.
+
+## Choosing the AI: OpenAI or Claude (added after Step 7)
+- Both providers sit behind `AIProvider`: `ai/openai.ts` (chat completions + strict `json_schema`) and `ai/anthropic.ts` (Messages API,
+  `output_config.format` json_schema; reads only `text` blocks; `stop_reason` refusal / max_tokens map to friendly errors).
+  Config: `OPENAI_API_KEY`+`OPENAI_MODEL`, `ANTHROPIC_API_KEY`+`ANTHROPIC_MODEL` (no default model in code; `.env.example` suggests
+  `claude-haiku-5-5`). `AI_PROVIDER` is only the default when the browser doesn't say.
+- The browser sends optional `provider: 'openai' | 'anthropic'` in the `/api/explain` body; `app.ts` rejects unknown names (400) and
+  calls `getProvider(name)`; `index.ts` caches one provider object per name. `/api/health` now also returns `providers: {openai, anthropic}`
+  (which have keys). The same prompt, schema, parser and move guard are used for both: the CORE RULE is provider-independent.
+- Frontend: `lib/aiProvider.ts` (tiny store, choice remembered in localStorage, reads `/api/health` once) + `components/ProviderPicker.tsx`
+  rendered by `ExplainGate` (so on both Coach and Overview). The provider is part of the explanation cache key in `App.tsx`.
+- Anthropic SDK 1.x sends the key as `Authorization: Bearer`, not `x-api-key` (the backend test accounts for it). Not yet tried against the
+  live API from the sandbox: tested with a mock Anthropic server only.
 
 ## Big Picture notes (Step 6)
 - One request, one response: `/api/explain` now returns `{moveExplanation,lastMoveFeedback,threats,lesson, overview}`. The Coach and

@@ -9,6 +9,8 @@ export interface Purposes {
 }
 
 export interface ExplainRequest {
+  /** Which AI should explain; the backend's default is used when missing. */
+  provider?: 'openai' | 'anthropic'
   fen: string
   viewer: 'white' | 'black'
   sideToMove: 'white' | 'black'

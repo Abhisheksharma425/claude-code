@@ -4,7 +4,7 @@ A beginner-friendly chess analyser that runs in your browser. Play moves or load
 best move, threats, a rating for every move, and short plain-English explanations so you can understand the
 position and improve.
 
-> **The one rule:** Stockfish decides which moves are best. The AI (OpenAI) only *explains* the engine's analysis
+> **The one rule:** Stockfish decides which moves are best. The AI (OpenAI or Claude, your choice) only *explains* the engine's analysis
 > and facts the code computed. It never chooses a move, and the backend rejects any answer that mentions a move
 > that wasn't in the data it was given.
 
@@ -26,8 +26,9 @@ position and improve.
 
 - **Node.js 22.12 or newer** (and npm). Check with `node -v`.
 - A modern browser (Chrome, Edge, Firefox, Safari) with WebAssembly. No special server headers are needed.
-- *Optional:* an [OpenAI API key](https://platform.openai.com/api-keys) for the Coach and Overview tabs. Everything
-  else (board, engine, ratings, facts, threats) works without one.
+- *Optional:* an [OpenAI API key](https://platform.openai.com/api-keys) and/or an
+  [Anthropic API key](https://console.anthropic.com/settings/keys) (for Claude) for the Coach and Overview tabs.
+  Everything else (board, engine, ratings, facts, threats) works without one.
 
 ## Setup
 
@@ -40,7 +41,7 @@ npm run install:all        # installs the frontend and the backend
 
 `install:all` also copies the Stockfish engine files into `frontend/public/engine/` (about 2 MB).
 
-### Add your OpenAI API key (for Coach and Overview)
+### Add an AI key (for Coach and Overview)
 
 ```bash
 cp .env.example backend/.env
@@ -57,7 +58,20 @@ OPENAI_MODEL=<a current OpenAI chat model that supports structured outputs>
   only putting the engine's analysis into words.
 - The file `backend/.env` is ignored by git, and the key stays on the backend. The browser never sees it. (A `.env`
   in the repository root works too.)
-- Restart the backend after changing the file. When it starts you'll see `AI: ready`, or a message saying what's missing.
+- Restart the backend after changing the file. When it starts you'll see which AIs are ready, for example
+  `AI: openai: ready, anthropic: not set up`.
+
+**To use Claude as well (or instead)**, add two more lines:
+
+```ini
+ANTHROPIC_API_KEY=sk-ant-...your key...
+ANTHROPIC_MODEL=claude-haiku-5-5
+```
+
+`claude-haiku-5-5` is the cheapest current Claude model; `claude-sonnet-5-5` and `claude-opus-5-5` are stronger and cost more.
+You can set up one AI or both. In the app, the **Explained by: OpenAI | Claude** switch on the Coach and Overview tabs
+chooses which one answers (your choice is remembered; an AI without a key is greyed out). `AI_PROVIDER` in `.env`
+only decides the starting choice.
 
 ## Run it
 
@@ -104,11 +118,13 @@ You can switch it off with the **Lichess cloud** button under the engine lines. 
 |---|---|
 | **"The engine couldn't run" / the engine never starts** | Reload the page and press *Try again*. The engine is WebAssembly in a Web Worker; some privacy extensions or very old browsers block that. Check that `frontend/public/engine/` contains two `stockfish-19-lite-single` files (run `npm run install:all` again if not). |
 | **"Can't reach the AI backend"** | The backend isn't running. Use `npm run dev`, or `npm run dev:backend` in another terminal. |
-| **"The AI isn't set up yet"** | `backend/.env` is missing `OPENAI_API_KEY` or `OPENAI_MODEL`. Add them and restart the backend. |
+| **"OpenAI isn't set up yet" / "Claude isn't set up yet"** | `backend/.env` is missing the key or model for the AI you picked (`OPENAI_API_KEY` + `OPENAI_MODEL`, or `ANTHROPIC_API_KEY` + `ANTHROPIC_MODEL`). Add them and restart the backend, or switch to the other AI. |
 | **"OpenAI rejected the API key"** | The key is wrong, revoked, or from another project. Check `OPENAI_API_KEY`. |
 | **"Your OpenAI account has no credit left"** | Add credit or a payment method at platform.openai.com. |
+| **"Anthropic rejected the API key"** | The Claude key is wrong or revoked. Check `ANTHROPIC_API_KEY`. |
+| **"Your Anthropic account has no credit left"** | Add credit at console.anthropic.com (Plans & Billing). |
 | **"... rate limit"** | You're sending requests too fast. Wait a moment and try again. |
-| **"OpenAI doesn't know the model ..."** | Check the spelling of `OPENAI_MODEL`, and that your key can use it. |
+| **"OpenAI doesn't know the model ..." / "Anthropic doesn't know the model ..."** | Check the spelling of `OPENAI_MODEL` / `ANTHROPIC_MODEL`, and that your key can use it. |
 | **"couldn't process the request ... structured outputs"** | The model you chose doesn't support JSON-schema structured outputs. Pick a current chat model that does. |
 | **The AI's answer was thrown away** | The AI mentioned a move Stockfish never suggested, or left parts out. The app already retried once. Press the button again. |
 | **A PGN won't load** | The message names the exact move that isn't legal (for example "Move 5. Qh8 isn't legal in that position"). Check for a typo or a missing move before it. PGNs with several games load the first game. `0-0` and `O-O` are both accepted. |
@@ -145,11 +161,11 @@ frontend/  React + Vite + TypeScript
     explain*.ts        builds the request for the backend
   src/components/ UI: board, engine panel, tabs
 backend/   Node + Express (TypeScript)
-  src/ai/         provider interface (OpenAI today), prompt, JSON schema, validation, move guard
+  src/ai/         provider interface (OpenAI and Claude), prompt, JSON schema, validation, move guard
 ```
 
-- **Adding another AI provider:** implement `AIProvider` in `backend/src/ai/provider.ts`, add a `case` in
-  `createProvider`, and set `AI_PROVIDER`.
+- **Adding another AI provider:** implement `AIProvider` (see `openai.ts` and `anthropic.ts`), add its name to
+  `PROVIDER_NAMES` and a `case` in `createProvider` (`backend/src/ai/provider.ts`), and add it to `frontend/src/lib/aiProvider.ts`.
 - **The guard:** every move the AI writes must already appear in the data it was sent, the purpose tags must come
   from the list the code computed, and the engine line's moves come from Stockfish (the AI only supplies the words).
 

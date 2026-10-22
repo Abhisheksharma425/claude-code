@@ -1,18 +1,28 @@
 import './env.js'
 import { createApp } from './app.js'
-import { createProvider, type AIProvider } from './ai/provider.js'
+import { createProvider, defaultProviderName, PROVIDER_NAMES, type AIProvider } from './ai/provider.js'
 
-let provider: AIProvider | null = null
-const getProvider = () => (provider ??= createProvider(process.env))
+// One provider object per name, created on first use, so the app can switch between OpenAI and Claude per request.
+const providers = new Map<string, AIProvider>()
+const getProvider = (name: string = defaultProviderName(process.env)) => {
+  let p = providers.get(name)
+  if (!p) {
+    p = createProvider(process.env, name)
+    providers.set(name, p)
+  }
+  return p
+}
 
-const app = createApp(getProvider, process.env.AI_PROVIDER ?? 'openai')
+const app = createApp(getProvider, defaultProviderName(process.env))
 const port = Number(process.env.PORT ?? 3001)
 app.listen(port, () => {
-  let status = 'ready'
-  try {
-    getProvider()
-  } catch (e) {
-    status = e instanceof Error ? e.message : 'not configured'
-  }
-  console.log(`Backend listening on http://localhost:${port} (AI: ${status})`)
+  const status = PROVIDER_NAMES.map((name) => {
+    try {
+      getProvider(name)
+      return `${name}: ready`
+    } catch {
+      return `${name}: not set up`
+    }
+  }).join(', ')
+  console.log(`Backend listening on http://localhost:${port} (AI: ${status}; default ${defaultProviderName(process.env)})`)
 })

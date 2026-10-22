@@ -285,6 +285,8 @@ kbd {
 .explain-section.lesson h3 { color: #3b82f6; }
 .explain-section.lesson h3::before { background: #3b82f6; }
 .explain-foot .btn { white-space: nowrap; flex: none; }
+.provider-picker { display: flex; align-items: center; gap: 10px; font-size: 0.85rem; margin-bottom: 14px; }
+.segmented button:disabled { opacity: 0.45; cursor: not-allowed; }
 .explain-foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; border-top: 1px solid var(--border); padding-top: 12px; }
 
 /* ---------- Threats ---------- */

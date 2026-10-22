@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import type { Explanation } from '../lib/explainTypes'
 import type { ExplanationState } from '../lib/useExplanation'
 import Icon from './Icon'
+import ProviderPicker from './ProviderPicker'
 
 interface Props {
   state: ExplanationState
@@ -27,10 +28,18 @@ export default function ExplainGate({ state, blockedReason, onExplain, title, bl
     )
   }
 
-  if (state.status === 'done') return <>{children(state.data)}</>
+  if (state.status === 'done') {
+    return (
+      <>
+        <ProviderPicker />
+        {children(state.data)}
+      </>
+    )
+  }
 
   return (
     <div className="explain">
+      <ProviderPicker />
       {state.status === 'error' && (
         <div className="callout error" role="alert">
           <p>{state.error.message}</p>

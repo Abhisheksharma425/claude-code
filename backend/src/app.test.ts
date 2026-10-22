@@ -33,13 +33,38 @@ describe('HTTP API', () => {
   })
 
   it('health reports whether the AI is configured', async () => {
-    expect(await (await fetch(`${base}/api/health`)).json()).toEqual({ ok: true, provider: 'openai', configured: true })
+    expect(await (await fetch(`${base}/api/health`)).json()).toEqual({
+      ok: true,
+      provider: 'openai',
+      configured: true,
+      providers: { openai: true, anthropic: true },
+    })
     provider = new AIError('not_configured', 'Add your key.', 503)
     expect(await (await fetch(`${base}/api/health`)).json()).toMatchObject({ ok: true, configured: false })
     const res = await post(sampleRequest)
     expect(res.status).toBe(503)
     expect(await res.json()).toEqual({ error: { code: 'not_configured', message: 'Add your key.' } })
     provider = { name: 'fake', complete: async () => JSON.stringify(goodModelAnswer) }
+  })
+
+  it('uses the provider the browser asks for, and rejects unknown names', async () => {
+    const asked: (string | undefined)[] = []
+    const app2 = createApp((name) => {
+      asked.push(name)
+      return { name: name ?? 'default', complete: async () => JSON.stringify(goodModelAnswer) }
+    })
+    const s2 = await new Promise<Server>((r) => {
+      const s = app2.listen(0, '127.0.0.1', () => r(s))
+    })
+    const url = `http://127.0.0.1:${(s2.address() as AddressInfo).port}/api/explain`
+    const send = (body: unknown) => fetch(url, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) })
+    expect((await send({ ...sampleRequest, provider: 'anthropic' })).status).toBe(200)
+    expect((await send(sampleRequest)).status).toBe(200)
+    expect(asked).toEqual(['anthropic', undefined])
+    const bad = await send({ ...sampleRequest, provider: 'wat' })
+    expect(bad.status).toBe(400)
+    expect((await bad.json()).error.message).toMatch(/"provider" must be one of: openai, anthropic/)
+    await new Promise<void>((r) => s2.close(() => r()))
   })
 
   it('passes provider errors to the browser with their code', async () => {

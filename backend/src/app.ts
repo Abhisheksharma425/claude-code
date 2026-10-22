@@ -1,30 +1,42 @@
 import cors from 'cors'
 import express, { type ErrorRequestHandler } from 'express'
 import { explain } from './ai/explain.js'
-import type { AIProvider } from './ai/provider.js'
+import { isProviderName, PROVIDER_NAMES, type AIProvider } from './ai/provider.js'
 import { AIError } from './ai/types.js'
 import { validateExplainRequest, ValidationError } from './ai/validate.js'
 
-/** `getProvider` is called per request so a missing key gives a clear error instead of crashing the server. */
-export function createApp(getProvider: () => AIProvider, providerName = 'openai') {
+/**
+ * `getProvider` is called per request so a missing key gives a clear error instead of crashing the server.
+ * The browser may name the provider it wants ("openai" or "anthropic"); without a name the default is used.
+ */
+export function createApp(getProvider: (name?: string) => AIProvider, providerName = 'openai') {
   const app = express()
   app.use(cors({ origin: [/^http:\/\/localhost:\d+$/, /^http:\/\/127\.0\.0\.1:\d+$/] }))
   app.use(express.json({ limit: '100kb' }))
 
   app.get('/api/health', (_req, res) => {
-    let configured = true
-    try {
-      getProvider()
-    } catch {
-      configured = false
+    const ready = (name?: string) => {
+      try {
+        getProvider(name)
+        return true
+      } catch {
+        return false
+      }
     }
-    res.json({ ok: true, provider: providerName, configured })
+    res.json({
+      ok: true,
+      provider: providerName,
+      configured: ready(),
+      providers: Object.fromEntries(PROVIDER_NAMES.map((n) => [n, ready(n)])),
+    })
   })
 
   app.post('/api/explain', async (req, res) => {
     try {
+      const wanted = (req.body as { provider?: unknown } | null)?.provider
+      if (wanted !== undefined && !isProviderName(wanted)) throw new ValidationError(`"provider" must be one of: ${PROVIDER_NAMES.join(', ')}.`)
       const request = validateExplainRequest(req.body)
-      const explanation = await explain(getProvider(), request)
+      const explanation = await explain(getProvider(wanted), request)
       res.json(explanation)
     } catch (e) {
       if (e instanceof ValidationError) {

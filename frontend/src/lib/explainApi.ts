@@ -11,7 +11,7 @@ const NO_BACKEND: ExplainError = {
   message: "Can't reach the AI backend. Start it with `npm run dev:backend` and try again.",
 }
 
-/** Calls the Express backend. The OpenAI key never reaches the browser; only /api/explain is used. */
+/** Calls the Express backend. No API key ever reaches the browser; only /api/explain is used. */
 export async function fetchExplanation(req: ExplainRequest, signal: AbortSignal): Promise<Explanation> {
   let res: Response
   try {

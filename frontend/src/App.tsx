@@ -25,6 +25,7 @@ import { buildExplainRequest } from './lib/explainPayload'
 import { positionKey } from './lib/analysisStore'
 import { pvToSan } from './lib/uci'
 import { useEngine } from './lib/useEngine'
+import { useAiProvider } from './lib/aiProvider'
 import { useExplanation } from './lib/useExplanation'
 import { useCloudStatus } from './lib/useCloudStatus'
 import { useMediaQuery } from './lib/useMediaQuery'
@@ -132,7 +133,9 @@ export default function App() {
   const viewer = orientation === 'white' ? 'w' : 'b'
   const lastClass = game.index > 0 ? classes[game.index - 1] : null
   const fenBefore = game.index > 0 ? (game.index > 1 ? game.plies[game.index - 2].fen : game.startFen) : null
-  const explainKey = `${positionKey(fen)}|${last?.san ?? ''}|${viewer}|${lastClass?.category ?? ''}`
+  const { provider: aiProvider } = useAiProvider()
+  // The AI is part of the key: switching from OpenAI to Claude asks again instead of showing the other one's answer.
+  const explainKey = `${positionKey(fen)}|${last?.san ?? ''}|${viewer}|${lastClass?.category ?? ''}|${aiProvider}`
   const explanation = useExplanation(explainKey)
   // Simple/Detailed is only a display choice (both versions come in the same response), so remember it per browser.
   const [detail, setDetailState] = useState<Detail>(() => {
@@ -164,7 +167,7 @@ export default function App() {
       fenBefore,
       classification: lastClass,
     })
-    if (req) void explanation.request(req)
+    if (req) void explanation.request({ ...req, provider: aiProvider })
   }
 
   const bestUci = engine.lines[0]?.pv[0]
