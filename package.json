@@ -9,5 +9,8 @@
     "build": "npm --prefix frontend run build",
     "typecheck": "npm --prefix frontend exec tsc -- -b --noEmit && npm --prefix backend exec tsc -- --noEmit",
     "test": "npm --prefix frontend test && npm --prefix backend test"
+  },
+  "engines": {
+    "node": ">=22.12.0"
   }
 }
