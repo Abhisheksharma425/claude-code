@@ -23,8 +23,8 @@ Build ONE step at a time. After each step: run, test, tell the user what to chec
 
 ## Step progress
 - [x] Step 1: Setup and board (board, move list, undo/redo, flip, reset, PGN/FEN load) — approved
-- [x] Step 2: Stockfish engine (lite single-threaded WASM, depth 16, MultiPV 3, eval bar, plain-words eval, top 3 lines, green best-move arrow, mate scores, stop-on-change, on/off toggle) — awaiting user OK
-- [ ] Step 3: Move classification
+- [x] Step 2: Stockfish engine (lite single-threaded WASM, depth 16, MultiPV 3, eval bar, plain-words eval, top 3 lines, green best-move arrow, mate scores, stop-on-change, on/off toggle) — approved
+- [x] Step 3: Move classification (badges in move list, better move shown, accuracy % + counts per side, basic "Analyze game" button) — awaiting user OK
 - [ ] Step 4: Position facts and threats (unit-tested)
 - [ ] Step 5: AI explanations (OpenAI, provider interface)
 - [ ] Step 6: Big Picture overview
@@ -42,3 +42,14 @@ Build ONE step at a time. After each step: run, test, tell the user what to chec
 - `lib/uci.ts`: pure, tested helpers. Scores are always stored from **White's point of view** (flipped from the engine's
   side-to-move view). Step 3 classification must convert to the mover's view.
 - `lib/useEngine.ts`: hook; finished analyses cached per position (first 4 FEN fields).
+
+## Classification notes (Step 3)
+- `lib/classify.ts` (pure, tested). Loss = mover's eval before (engine top line) minus eval after, in centipawns from the
+  **mover's** point of view; scores capped at ±1000 so being "more winning" is never a loss. Best = engine top move;
+  <50 Good, 50-<100 Inaccuracy, 100-200 Mistake, >200 Blunder. Missed mate = mover had a forced mate and no longer does.
+- If the played move is among the engine's MultiPV lines, that line's score is used for "after" (same search, like-for-like);
+  otherwise the analysis of the resulting position is used. Checkmate/stalemate after a move is scored without the engine.
+- Accuracy per move = f(drop in win%) (logistic win% curve); side accuracy = mean over rated moves.
+- `lib/analysisStore.ts`: shared cache of finished analyses; ratings are derived from it, so they appear as analyses finish.
+- `lib/gameAnalysis.ts`: sequential batch ("Analyze game"); pauses the live-position hook while running. Engine `stop(id)`
+  only cancels the caller's own job. Step 7 should add: jump-to-blunders, nicer progress.

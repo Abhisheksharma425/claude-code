@@ -23,7 +23,7 @@ export default function EnginePanel({ fen, enabled, onToggle, status, lines, err
   } else if (top) {
     headline = evalInWords(top.score)
   } else {
-    headline = status === 'off' ? 'Engine is off' : 'Starting the engine…'
+    headline = status === 'off' ? 'Engine is off' : status === 'paused' ? 'Analyzing the whole game…' : 'Starting the engine…'
   }
 
   const progress =

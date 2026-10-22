@@ -1,13 +1,18 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Chess } from 'chess.js'
 import { Chessboard, type PieceDropHandlerArgs } from 'react-chessboard'
 import EnginePanel from './components/EnginePanel'
 import EvalBar from './components/EvalBar'
+import GameSummary from './components/GameSummary'
 import LoadPanel from './components/LoadPanel'
+import MoveFeedback from './components/MoveFeedback'
 import MoveList from './components/MoveList'
 import {
   canRedo, canUndo, fenAt, jumpTo, lastPly, newGame, playMove, type GameState,
 } from './lib/game'
+import { getAnalysis, useAnalysisVersion } from './lib/analysisStore'
+import { classifyGame, summarizeGame } from './lib/classify'
+import { analyzePositions, type Batch } from './lib/gameAnalysis'
 import { useEngine } from './lib/useEngine'
 
 const BEST_ARROW_COLOR = 'rgba(34, 160, 60, 0.85)'
@@ -21,7 +26,37 @@ export default function App() {
   const chess = useMemo(() => new Chess(fen), [fen])
   const last = lastPly(game)
   const [engineOn, setEngineOn] = useState(true)
-  const engine = useEngine(fen, engineOn)
+  const [batchProgress, setBatchProgress] = useState<{ done: number; total: number } | null>(null)
+  const [batchError, setBatchError] = useState<string | null>(null)
+  const batchRef = useRef<Batch | null>(null)
+  const engine = useEngine(fen, engineOn, batchProgress !== null)
+
+  // Ratings are derived from finished engine analyses, so they fill in as analyses complete.
+  const analysisVersion = useAnalysisVersion()
+  const classes = useMemo(
+    () => classifyGame(game.startFen, game.plies, getAnalysis),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [game.startFen, game.plies, analysisVersion],
+  )
+  const summary = useMemo(() => summarizeGame(game.startFen, game.plies, classes), [game.startFen, game.plies, classes])
+
+  // A batch belongs to one game: changing the moves cancels it.
+  const gameSignature = game.startFen + game.plies.map((p) => p.san).join(' ')
+  useEffect(() => () => batchRef.current?.cancel(), [gameSignature])
+
+  const startBatch = () => {
+    setBatchError(null)
+    const fens = [game.startFen, ...game.plies.map((p) => p.fen)]
+    const batch = analyzePositions(fens, (done, total) => setBatchProgress({ done, total }))
+    batchRef.current = batch
+    setBatchProgress({ done: 0, total: batch.total })
+    batch.done.then(({ result, error }) => {
+      if (batchRef.current === batch) batchRef.current = null
+      setBatchProgress(null)
+      if (result === 'error') setBatchError(error ?? 'Analysis failed.')
+    })
+  }
+
   const bestUci = engine.lines[0]?.pv[0]
   const arrows = bestUci
     ? [{ startSquare: bestUci.slice(0, 2), endSquare: bestUci.slice(2, 4), color: BEST_ARROW_COLOR }]
@@ -108,10 +143,19 @@ export default function App() {
             error={engine.error}
             onRetry={engine.retry}
           />
+          <MoveFeedback ply={last} classification={game.index > 0 ? classes[game.index - 1] : null} engineOn={engineOn} />
           <div className="card">
             <h2>Moves</h2>
-            <MoveList game={game} onJump={(i) => setGame((g) => jumpTo(g, i))} />
+            <MoveList game={game} classes={classes} onJump={(i) => setGame((g) => jumpTo(g, i))} />
           </div>
+          <GameSummary
+            summary={summary}
+            hasMoves={game.plies.length > 0}
+            progress={batchProgress}
+            error={batchError}
+            onAnalyze={startBatch}
+            onCancel={() => batchRef.current?.cancel()}
+          />
           <LoadPanel onLoad={(g) => setGame(g)} />
         </aside>
       </main>
