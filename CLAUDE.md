@@ -16,7 +16,8 @@ computed facts. It never chooses moves itself.**
 - Vite dev server proxies `/api` to the backend on :3001.
 
 ## Commands
-- `npm run install:all`, `npm run dev:frontend` (:5173), `npm run dev:backend` (:3001), `npm test` (frontend + backend tests).
+- `npm run install:all`, `npm run dev` (backend :3001 + frontend :5173 together), `npm run dev:frontend`, `npm run dev:backend`,
+  `npm test` (frontend + backend tests), `npm run typecheck`, `npm run build`. Needs Node >= 22.12.
 
 ## Working style
 Build ONE step at a time. After each step: run, test, tell the user what to check, wait for OK.
@@ -27,8 +28,8 @@ Build ONE step at a time. After each step: run, test, tell the user what to chec
 - [x] Step 3: Move classification (badges in move list, better move shown, accuracy % + counts per side, basic "Analyze game" button) — approved
 - [x] Step 4: Position facts and threats (unit-tested; facts panel, Your/Opponent's threats lists, red/orange highlights, Show threat button + X key) — approved
 - [x] Step 5: AI explanations (OpenAI via /api/explain, provider interface, structured outputs, coach panel with loading/cache/errors) — approved
-- [x] Step 6: Big Picture overview (same /api/explain response; Overview tab; Simple/Detailed toggle; code-computed purpose tags; engine line story) — awaiting user OK
-- [ ] Step 7: Speed and polish (Lichess cloud eval, analyze full game, README)
+- [x] Step 6: Big Picture overview (same /api/explain response; Overview tab; Simple/Detailed toggle; code-computed purpose tags; engine line story) — approved
+- [x] Step 7: Speed and polish (Lichess cloud eval + local fallback, analyze full game + key moments/graph, error handling, README, final review) — awaiting user OK
 
 ## Notes
 - Game model is `frontend/src/lib/game.ts` (pure, tested). Playing from mid-game replaces later moves.
@@ -111,3 +112,21 @@ Build ONE step at a time. After each step: run, test, tell the user what to chec
 - "Sets trap" = bait: after the move the opponent has a capture after which the mover has mate in one (`setsTrap`).
 - Cost note: the overview roughly doubles the response size (both versions of each text). If latency/cost matters, add an `include`
   flag to the request and split Coach/Overview into separate calls.
+
+## Speed & polish notes (Step 7)
+- **Lichess Cloud Eval** (`lib/cloudEval.ts`): public API only (`GET https://lichess.org/api/cloud-eval?fen=..&multiPv=3`, called straight
+  from the browser). Scores are assumed to be from White's point of view; castling given as king-takes-rook is rewritten to e1g1 style.
+  Politeness: token bucket (burst 3, ~1 request/s), HTTP 404 = unknown position (remembered, never re-asked), HTTP 429 = pause 65 s,
+  3 failures in a row = pause 5 min. Requests are never queued: if no token is free we skip the cloud and use the local engine.
+  User toggle ("Lichess cloud" chip, remembered in localStorage) turns it off completely. **Not verified against the live API from the
+  dev sandbox (lichess.org was blocked there); verified with intercepted responses.** If the cloud eval ever looks backwards, check the sign.
+- `lib/evaluate.ts` = the single entry point for evaluating a position: cloud lookup first; local Stockfish starts immediately on a miss/
+  skip/error, or after 700 ms if Lichess is slow (whichever finishes first wins; the loser is cancelled). Used by `useEngine`,
+  `useThreat` and the batch (`gameAnalysis.ts`). `analysisStore` remembers each result's `source` ('cloud' | 'local').
+- **Analyze full game**: batch runs through `evaluatePosition` (reports how many positions came from the cloud). `lib/keyMoments.ts`:
+  key moments = blunders, mistakes, missed mates; `[` / `]` jump between them; `EvalGraph` (click to jump). "Load and analyze" button.
+- **Error handling**: engine worker crash / startup timeout (20 s) reports to every waiting job (`onError`), so nothing hangs, the panel
+  shows "Try again"; Lichess failures fall back silently (status note under the engine lines); bad PGN messages name the exact move
+  (`diagnosePgn` in `game.ts`), accept `0-0`, load the first game of a multi-game file (+ notice bar), 200k-char cap; React `ErrorBoundary`.
+- `engine.stop(id)` no longer sends a second `stop` to a search that was already told to stop.
+- README.md documents setup, `.env`, running, troubleshooting. `scripts/dev.mjs` runs both servers.
