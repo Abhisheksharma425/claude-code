@@ -113,6 +113,7 @@ You can switch it off with the **Lichess cloud** button under the engine lines. 
 | **The AI's answer was thrown away** | The AI mentioned a move Stockfish never suggested, or left parts out. The app already retried once. Press the button again. |
 | **A PGN won't load** | The message names the exact move that isn't legal (for example "Move 5. Qh8 isn't legal in that position"). Check for a typo or a missing move before it. PGNs with several games load the first game. `0-0` and `O-O` are both accepted. |
 | **Cloud evals look wrong or backwards** | Turn off *Lichess cloud* and compare: the local engine is the reference. Please report it. |
+| **`npm run dev` says "Dependencies are missing"** | Run `npm run install:all` first. |
 | **Port already in use** | Something else is on 3001 or 5173. Stop it, or set `PORT` in `backend/.env` (and change the proxy target in `frontend/vite.config.ts`). |
 
 ## Tests and checks

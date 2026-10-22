@@ -129,7 +129,8 @@ Build ONE step at a time. After each step: run, test, tell the user what to chec
   shows "Try again"; Lichess failures fall back silently (status note under the engine lines); bad PGN messages name the exact move
   (`diagnosePgn` in `game.ts`), accept `0-0`, load the first game of a multi-game file (+ notice bar), 200k-char cap; React `ErrorBoundary`.
 - `engine.stop(id)` no longer sends a second `stop` to a search that was already told to stop.
-- README.md documents setup, `.env`, running, troubleshooting. `scripts/dev.mjs` runs both servers.
+- README.md documents setup, `.env`, running, troubleshooting. `scripts/dev.mjs` runs both servers by launching Node directly (vite / tsx),
+  with no npm and no shell: an earlier version used `shell: true` on Windows and broke when the project path contained a space.
 - **Repo hygiene lesson:** the inherited Python `.gitignore` had `lib/`, which silently ignored all of `frontend/src/lib` (it is now
   anchored as `/lib/`). Before calling a step done, verify with a fresh `git clone` of the remote: `npm run install:all && npm test &&
   npm run typecheck && npm run build` (this is how it was found).
