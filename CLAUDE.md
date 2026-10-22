@@ -84,3 +84,14 @@ Build ONE step at a time. After each step: run, test, tell the user what to chec
   `lib/useExplanation.ts` caches per position/move/viewer; the Coach panel only explains after the engine finishes (button, so no
   surprise API spend). Browser only ever calls `/api/explain`.
 - Testing without a key: backend tests use a mock OpenAI HTTP server; set `OPENAI_BASE_URL` to point at any compatible server.
+
+## UI layout notes (design pass after Step 5)
+- App-style shell: `.app` = top bar + `.workspace`. >=900px the page fits the window (no page scroll): board sized by
+  `--board-size` (height-limited), one right-hand `.panel` = compact `EnginePanel` (score chip, words, depth bar, 3 one-line
+  lines, on/off switch) + `Tabs` + `.tab-body`. >=1400px the move list is its own column; below that "Moves" is the first tab.
+  <900px everything stacks and the page scrolls.
+- Tabs: Moves (narrow only), Coach, Threats (red dot when your pieces are in danger), Facts, Summary, Load. New features
+  (Step 6 "Big Picture") should be added as a tab in `App.tsx` (`tabs` + `switch (activeTab)`), not as another stacked card.
+- Styling: design tokens in `:root` + dark mode via `prefers-color-scheme` in `styles.css`; board is soft blue-grey so the
+  green (best) / red (threat) arrows and yellow last-move highlight contrast. Reusable classes: `.btn(.primary/.ghost/.small/.wide)`,
+  `.callout(.error/.ok/.warn/.danger)`, `.badge`, `.empty-state`.
