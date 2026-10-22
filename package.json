@@ -1,0 +1,10 @@
+{
+  "name": "chess-analyser",
+  "private": true,
+  "scripts": {
+    "install:all": "npm --prefix frontend install && npm --prefix backend install",
+    "dev:frontend": "npm --prefix frontend run dev",
+    "dev:backend": "npm --prefix backend run dev",
+    "test": "npm --prefix frontend test"
+  }
+}
