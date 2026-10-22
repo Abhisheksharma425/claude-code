@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Chess } from 'chess.js'
-import { Chessboard, type PieceDropHandlerArgs } from 'react-chessboard'
+import { Chessboard, type PieceDropHandlerArgs, type SquareHandlerArgs } from 'react-chessboard'
 import BoardToolbar from './components/BoardToolbar'
 import EnginePanel from './components/EnginePanel'
 import ExplainPanel from './components/ExplainPanel'
@@ -20,6 +20,7 @@ import { classifyGame, summarizeGame } from './lib/classify'
 import { evalSeries, keyMoments, stepKeyMoment } from './lib/keyMoments'
 import { analyzePositions, type Batch } from './lib/gameAnalysis'
 import { analyzePosition } from './lib/facts'
+import { clickOutcome, hintStyles } from './lib/legalTargets'
 import { buildThreatLists, highlightSquares } from './lib/threats'
 import { buildExplainRequest } from './lib/explainPayload'
 import { positionKey } from './lib/analysisStore'
@@ -185,7 +186,20 @@ export default function App() {
   const flip = useCallback(() => setOrientation((o) => (o === 'white' ? 'black' : 'white')), [])
   const reset = () => { setGame(newGame()); setOrientation('white') }
 
+  // Click-to-move: click one of your pieces to see where it can go (light dots), then click a dotted square.
+  const [selected, setSelected] = useState<string | null>(null)
+  useEffect(() => setSelected(null), [fen])
+  const onSquareClick = ({ square }: SquareHandlerArgs) => {
+    const r = clickOutcome(fen, selected, square)
+    if (r.move) {
+      const next = playMove(game, r.move.from, r.move.to)
+      if (next) setGame(next)
+    }
+    setSelected(r.selected)
+  }
+
   const onPieceDrop = ({ sourceSquare, targetSquare }: PieceDropHandlerArgs) => {
+    setSelected(null)
     if (!targetSquare) return false
     const next = playMove(game, sourceSquare, targetSquare)
     if (!next) return false
@@ -320,8 +334,10 @@ export default function App() {
                   position: fen,
                   boardOrientation: orientation,
                   onPieceDrop,
+                  onSquareClick,
+                  onPieceDrag: ({ square }) => { if (square) setSelected(clickOutcome(fen, null, square).selected) },
                   canDragPiece: ({ piece }) => piece.pieceType[0] === chess.turn(),
-                  squareStyles,
+                  squareStyles: hintStyles(fen, selected, squareStyles),
                   arrows,
                   allowDrawingArrows: false,
                   animationDurationInMs: 150,

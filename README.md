@@ -12,7 +12,7 @@ position and improve.
 
 | | |
 |---|---|
-| **Board** | Drag pieces (legal moves only), click any move in the list to jump, undo/redo, flip, new game. Load a game from a PGN (pasted or uploaded as a `.pgn` file) or a position from a FEN. Works on phones. |
+| **Board** | Click a piece to see where it can go (light dots; a ring marks a capture) and click a dotted square to move, or drag it (legal moves only), click any move in the list to jump, undo/redo, flip, new game. Load a game from a PGN (pasted or uploaded as a `.pgn` file) or a position from a FEN. Works on phones. |
 | **chess.com games** | On the Load tab, type a chess.com username to list that player's recent public games (newest first, with result, opponent and time control) and load or analyze one with your side at the bottom. No password or key needed. |
 | **Engine** | Stockfish 19 (WebAssembly, in a Web Worker): depth 16, top 3 lines, eval bar, evaluation in plain words ("White is slightly better"), green best-move arrow, mate scores. |
 | **Move ratings** | Best / Good / Inaccuracy / Mistake / Blunder / Missed mate for every move, from the mover's point of view, with the better move shown. Accuracy % and counts per side. |
@@ -89,7 +89,7 @@ To try a production build: `npm run build`, then `npm --prefix frontend run prev
 
 ## Using the app
 
-1. Drag a piece, or open the **Load** tab: type your chess.com username and pick a game, upload a `.pgn` file, or paste a PGN or FEN (or press **Try an example**). Pictures (for example a PNG screenshot of a board) can't be read.
+1. Click a piece and then a dotted square (or drag it), or open the **Load** tab: type your chess.com username and pick a game, upload a `.pgn` file, or paste a PGN or FEN (or press **Try an example**). Pictures (for example a PNG screenshot of a board) can't be read.
 2. The engine starts automatically. The right-hand panel shows the evaluation and the top 3 lines.
 3. Open **Summary** and press **Analyze full game** (or use **Load and analyze**) to rate every move.
    Click a key moment, or press `]` / `[`, to jump between blunders.

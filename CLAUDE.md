@@ -121,6 +121,12 @@ Build ONE step at a time. After each step: run, test, tell the user what to chec
   responses); if the browser blocks it (CORS), the fix is a small proxy route in `backend/`.
 - Loading a chess.com game also sets the board orientation to the searched player's colour (`onLoad(game, note, orientation)`).
 
+## Click-to-move hints (added after Step 7)
+- `lib/legalTargets.ts` (pure, tested): `legalTargets(fen, square)` (chess.js legal moves, captures flagged), `clickOutcome(fen, selected, square)`
+  (select / switch / play / clear) and `hintStyles` (light dot on empty targets, ring on captures, soft blue on the selected square).
+  `App.tsx` keeps `selected`, uses the board's `onSquareClick` (and `onPieceDrag` so dragging shows the dots too); selection resets whenever the
+  position changes. Dots replace the orange/red threat glow on a target square while a piece is selected. Promotion still auto-queens.
+
 ## Big Picture notes (Step 6)
 - One request, one response: `/api/explain` now returns `{moveExplanation,lastMoveFeedback,threats,lesson, overview}`. The Coach and
   Overview tabs share the same fetched data (`ExplainGate` handles loading/error/ask states), so asking in either tab fills both.
